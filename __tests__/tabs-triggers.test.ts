@@ -1,0 +1,76 @@
+// @vitest-environment node
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Database from "better-sqlite3";
+import { initDb } from "@/db";
+
+describe("tabs timestamp & cleanup triggers", () => {
+  let memDb: Database.Database;
+
+  beforeEach(() => {
+    memDb = new Database(":memory:");
+    initDb(memDb);
+  });
+
+  afterEach(() => {
+    memDb.close();
+  });
+
+  it("writes ISO 8601 UTC timestamp when updated_at is not explicitly changed", () => {
+    const oldTs = new Date(Date.now() - 60_000).toISOString();
+    const info = memDb
+      .prepare(
+        "INSERT INTO tabs (name, is_permanent, is_table, is_staff, created_at, updated_at, items) VALUES (?, 0, 0, 0, ?, ?, '[]')",
+      )
+      .run("Karel", oldTs, oldTs);
+
+    memDb.prepare("UPDATE tabs SET items = ? WHERE id = ?").run('[{"name":"Pivo"}]', info.lastInsertRowid);
+
+    const row = memDb
+      .prepare("SELECT updated_at FROM tabs WHERE id = ?")
+      .get(info.lastInsertRowid) as { updated_at: string };
+
+    expect(row.updated_at).not.toBe(oldTs);
+    expect(row.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  });
+
+  it("preserves explicit ISO 8601 updated_at provided by API", () => {
+    const createdTs = new Date(Date.now() - 60_000).toISOString();
+    const explicitTs = new Date().toISOString();
+    const info = memDb
+      .prepare(
+        "INSERT INTO tabs (name, is_permanent, is_table, is_staff, created_at, updated_at, items) VALUES (?, 0, 0, 0, ?, ?, '[]')",
+      )
+      .run("Jana", createdTs, createdTs);
+
+    memDb
+      .prepare("UPDATE tabs SET items = ?, updated_at = ? WHERE id = ?")
+      .run('[{"name":"Kava"}]', explicitTs, info.lastInsertRowid);
+
+    const row = memDb
+      .prepare("SELECT updated_at FROM tabs WHERE id = ?")
+      .get(info.lastInsertRowid) as { updated_at: string };
+
+    expect(row.updated_at).toBe(explicitTs);
+  });
+
+  it("cleans up expired temporary tabs in both ISO 8601 and legacy space-separated formats", () => {
+    const nowIso = new Date().toISOString();
+    const insert = memDb.prepare(
+      "INSERT INTO tabs (name, is_permanent, is_table, is_staff, created_at, updated_at, items) VALUES (?, ?, ?, 0, ?, ?, '[]')",
+    );
+
+    insert.run("Expired ISO", 0, 0, "2020-01-01T00:00:00.000Z", "2020-01-01T00:00:00.000Z");
+    insert.run("Expired Legacy", 0, 0, "2020-01-01 00:00:00", "2020-01-01 00:00:00");
+    insert.run("Permanent Expired", 1, 0, "2020-01-01T00:00:00.000Z", "2020-01-01T00:00:00.000Z");
+    insert.run("Table Expired", 1, 1, "2020-01-01T00:00:00.000Z", "2020-01-01T00:00:00.000Z");
+    // Inserting a fresh temporary tab triggers AFTER INSERT cleanup
+    insert.run("Fresh Tab", 0, 0, nowIso, nowIso);
+
+    const remaining = memDb
+      .prepare("SELECT name FROM tabs ORDER BY id ASC")
+      .all()
+      .map((r: any) => r.name);
+
+    expect(remaining).toEqual(["Permanent Expired", "Table Expired", "Fresh Tab"]);
+  });
+});

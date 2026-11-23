@@ -58,8 +58,8 @@ export function getDb() {
   return db;
 }
 
-export function initDb() {
-  const database = getDb();
+export function initDb(targetDb?: Database.Database) {
+  const database = targetDb ?? getDb();
   database.exec(`
     CREATE TABLE IF NOT EXISTS general (
       id INTEGER PRIMARY KEY CHECK (id = 1), -- singleton row
@@ -137,22 +137,26 @@ export function initDb() {
       WHERE id = NEW.id;
     END;
 
-    -- Trigger: Aktualizace updated_at při změně tabu
-    CREATE TRIGGER IF NOT EXISTS trg_tabs_timestamp
+    -- Trigger: Aktualizace updated_at v ISO 8601 UTC při změně tabu bez explicitní změny updated_at
+    DROP TRIGGER IF EXISTS trg_tabs_timestamp;
+    CREATE TRIGGER trg_tabs_timestamp
     AFTER UPDATE ON tabs
+    WHEN NEW.updated_at = OLD.updated_at
     BEGIN
-      UPDATE tabs SET updated_at = datetime('now') WHERE id = NEW.id;
+      UPDATE tabs SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = NEW.id;
     END;
 
     -- Trigger: Auto-úklid (Garbage Collection)
     -- Při vytvoření nového tabu smaže dočasné (is_permanent=0), které nebyly aktivní 7 dní
-    CREATE TRIGGER IF NOT EXISTS trg_tabs_cleanup
+    -- datetime(updated_at) spolehlivě porovná ISO 8601 i starší formát s mezerou
+    DROP TRIGGER IF EXISTS trg_tabs_cleanup;
+    CREATE TRIGGER trg_tabs_cleanup
     AFTER INSERT ON tabs
     BEGIN
-      DELETE FROM tabs 
-      WHERE is_permanent = 0 
+      DELETE FROM tabs
+      WHERE is_permanent = 0
       AND is_table = 0
-      AND updated_at < datetime('now', '-7 days');
+      AND datetime(updated_at) < datetime('now', '-7 days');
     END;
 
     -- Ensure singleton row in general table exists
@@ -171,10 +175,12 @@ const dbProxy = new Proxy({} as any, {
 });
 
 // Initial call - wrap in try-catch to prevent app crash if DB fails to init
-try {
-  initDb();
-} catch (error) {
-  console.error("Failed to initialize database:", error);
+if (!process.env.VITEST) {
+  try {
+    initDb();
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+  }
 }
 
 function cleanupDb() {
