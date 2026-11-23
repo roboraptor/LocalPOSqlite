@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     fs.writeFileSync(configPath, JSON.stringify({ dbPath }, null, 2));
     invalidateDbPath();
     return NextResponse.json({
-      message: "Path updated. You may need to restart the application for changes to take effect.",
+      message: "Cesta k databázi byla aktualizována. Připojení k nové databázi proběhne automaticky.",
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

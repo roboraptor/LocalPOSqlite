@@ -104,7 +104,7 @@ export default function DBSettings() {
           </div>
           <div className="form-text">
             Relativní cesta od kořene projektu nebo absolutní cesta. <br />
-            <strong>Poznámka:</strong> Po změně cesty může být vyžadován restart aplikace.
+            <strong>Poznámka:</strong> Po uložení cesty se aplikace přepojí k nové databázi automaticky bez nutnosti restartu.
           </div>
         </div>
 

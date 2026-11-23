@@ -45,7 +45,7 @@ The project is designed for small businesses, cafes, pubs, or as an experimental
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 19, custom CSS modules, React Icons (`react-icons/fa6`)
 - **Database**: `better-sqlite3` (SQLite)
-- **Utilities**: `qrcode.react` (SPAYD QR Generation), `pdfkit` (PDF generation)
+- **Utilities**: `qrcode.react` (SPAYD QR Generation)
 
 ---
 
@@ -53,7 +53,6 @@ The project is designed for small businesses, cafes, pubs, or as an experimental
 
 ```
 /data/               # Default SQLite database location
-/scripts/            # Migration scripts (JSON -> SQLite)
 /src/
   ├── app/           # Next.js 15 App Router (Pages & API Routes)
   ├── components/    # Reusable React components (Modals, Settings Panels)
@@ -84,20 +83,13 @@ The project is designed for small businesses, cafes, pubs, or as an experimental
 2. **Environment Setup:**
    The application requires an `ADMIN_SECRET` for settings access. On first run, a `.env` file will be automatically created from `.env.example` with the default password `posadmin123`. You can change this anytime in the `.env` file.
 
-3. **(Optional) Migrate legacy JSON data:**
-   If you have old `data/items.json` or `data/receipts.json` and want to migrate them into the SQLite database:
-
-   ```bash
-   node scripts/migrate.js
-   ```
-
-4. **Start the development server:**
+3. **Start the development server:**
 
    ```bash
    npm run dev
    ```
 
-5. **Access the application:**
+4. **Access the application:**
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---

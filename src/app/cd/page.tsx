@@ -17,7 +17,7 @@ export default function CustomerDisplayPage() {
     status: "pending",
   });
 
-  const [shopName, setShopName] = useState<string>("EffortUp");
+  const [shopName, setShopName] = useState<string>("Local POS");
   const [floatingIcons, setFloatingIcons] = useState<any[]>([]);
   const [favoriteIconNames, setFavoriteIconNames] = useState<string[]>([]);
   const [particles, setParticles] = useState<any[]>([]);
