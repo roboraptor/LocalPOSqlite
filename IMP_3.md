@@ -43,8 +43,8 @@ Dokument vychází z auditu repozitáře na větvi `V2` a shrnuje zjištění i 
 
 Položky z auditu, které záměrně neřešíme v prvním čistém refaktoru, protože mění datový model nebo chování UI:
 
-1. **Dynamické kategorie v `/items`**: nahradit hardcodovaný `CATEGORIES = ["Nápoje", "Jídlo", "Ostatní"]` v `src/app/items/page.tsx` daty z `/api/categories`.
-2. **Sjednocení timestampů v tabulce `tabs`**: sjednotit ISO 8601 z `src/app/api/tabs/route.ts` a SQLite `datetime('now')` v triggerech `trg_tabs_timestamp` / `trg_tabs_cleanup` v `src/db.ts`.
-3. **Napojení ignorovaných polí z `general` a odstranění pozůstatků `is_staff`**: napojit `currency`, `tax_enabled`, `tax_rate`, `receipt_title`, `receipt_header`, `receipt_footer`, `trx_vs_enabled`, `eet_enable` (nebo odstranit nepoužívané) a vyřešit `is_staff` v `export/page.tsx` a `tabs`.
-4. **Odtrackování databázových souborů z gitu**: odebrat verzované soubory `data my/pos.db*` a `data my/pos2.db` z gitu a doplnit `.gitignore`; opravit odkazy na neexistující `scripts/migrate.js` v `README.md` a `/data/example_items.json` v `.gitignore`.
-5. **Úprava zastaralých textů**: opravit hlášku o nutnosti restartu po změně cesty DB (`DBSettings.tsx`, `api/settings/db/route.ts`) a výchozí název `"EffortUp"` v `src/app/cd/page.tsx`.
+- [x] **1. Dynamické kategorie v `/items`**: nahradit hardcodovaný `CATEGORIES = ["Nápoje", "Jídlo", "Ostatní"]` v `src/app/items/page.tsx` daty z `/api/categories`.
+- [ ] **2. Sjednocení timestampů v tabulce `tabs`**: sjednotit ISO 8601 z `src/app/api/tabs/route.ts` a SQLite `datetime('now')` v triggerech `trg_tabs_timestamp` / `trg_tabs_cleanup` v `src/db.ts`.
+- [ ] **3. Napojení ignorovaných polí z `general` a odstranění pozůstatků `is_staff`**: napojit `currency`, `tax_enabled`, `tax_rate`, `receipt_title`, `receipt_header`, `receipt_footer`, `trx_vs_enabled`, `eet_enable` (nebo odstranit nepoužívané) a vyřešit `is_staff` v `export/page.tsx` a `tabs`.
+- [ ] **4. Odtrackování databázových souborů z gitu**: odebrat verzované soubory `data my/pos.db*` a `data my/pos2.db` z gitu a doplnit `.gitignore`; opravit odkazy na neexistující `scripts/migrate.js` v `README.md` a `/data/example_items.json` v `.gitignore`.
+- [ ] **5. Úprava zastaralých textů**: opravit hlášku o nutnosti restartu po změně cesty DB (`DBSettings.tsx`, `api/settings/db/route.ts`) a výchozí název `"EffortUp"` v `src/app/cd/page.tsx`.

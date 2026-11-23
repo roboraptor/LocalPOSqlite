@@ -5,11 +5,9 @@ import { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from "reac
 import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
-import { Item } from "@/types/db";
+import { Item, Category } from "@/types/db";
 import { czk } from "@/lib/format";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
-
-const CATEGORIES = ["Nápoje", "Jídlo", "Ostatní"];
 
 // Nová komponenta pro kartu položky pro lepší přehlednost
 function ItemCard({
@@ -83,6 +81,7 @@ function ItemCard({
 
 export default function ItemsAdmin() {
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [favoriteIcons, setFavoriteIcons] = useState<string[]>(FAVORITE_ICONS);
   const [loading, setLoading] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -90,12 +89,18 @@ export default function ItemsAdmin() {
   const [dirty, setDirty] = useState(false);
   const dragIdRef = useRef<number | null>(null);
 
+  const categoryNames = useMemo(
+    () => (categories.length > 0 ? categories.map((c) => c.name) : ["Ostatní"]),
+    [categories],
+  );
+  const defaultCategory = categoryNames.includes("Ostatní") ? "Ostatní" : categoryNames[0];
+
   // Form state
   const emptyForm = {
     id: null,
     name: "",
     price: "",
-    category: "Ostatní",
+    category: defaultCategory,
     icon: "FaCubes",
     position: "",
   };
@@ -112,9 +117,10 @@ export default function ItemsAdmin() {
     setLoading(true);
     setErr(null);
     try {
-      const [itemsRes, iconsRes] = await Promise.all([
+      const [itemsRes, iconsRes, catsRes] = await Promise.all([
         fetch("/api/items", { cache: "no-store" }),
         fetch("/api/icons", { cache: "no-store" }), // Načteme dynamické ikony z API
+        fetch("/api/categories", { cache: "no-store" }),
       ]);
 
       if (!itemsRes.ok) throw new Error("Nepodařilo se načíst položky.");
@@ -123,6 +129,20 @@ export default function ItemsAdmin() {
       if (iconsRes.ok) {
         const iconsData = await iconsRes.json();
         if (Array.isArray(iconsData)) setFavoriteIcons(iconsData);
+      }
+
+      if (catsRes.ok) {
+        const catsData = await catsRes.json();
+        if (Array.isArray(catsData)) {
+          setCategories(catsData);
+          if (catsData.length > 0) {
+            const names = catsData.map((c: Category) => c.name);
+            const nextDefault = names.includes("Ostatní") ? "Ostatní" : names[0];
+            setForm((f) =>
+              f.id === null && !names.includes(f.category) ? { ...f, category: nextDefault } : f,
+            );
+          }
+        }
       }
 
       // Normalizace position + seřazení
@@ -160,15 +180,23 @@ export default function ItemsAdmin() {
     );
 
     const groupNames = Object.keys(groups).sort((a, b) => {
-      const indexA = CATEGORIES.indexOf(a);
-      const indexB = CATEGORIES.indexOf(b);
+      const indexA = categoryNames.indexOf(a);
+      const indexB = categoryNames.indexOf(b);
       if (indexA !== -1 && indexB !== -1) return indexA - indexB;
       if (indexA !== -1) return -1;
       if (indexB !== -1) return 1;
       return a.localeCompare(b);
     });
     return groupNames.map((name) => ({ name, items: groups[name] }));
-  }, [items]);
+  }, [items, categoryNames]);
+
+  const selectCategoryOptions = useMemo(
+    () =>
+      form.category && !categoryNames.includes(form.category)
+        ? [...categoryNames, form.category]
+        : categoryNames,
+    [categoryNames, form.category],
+  );
 
   const resetForm = () => setForm(emptyForm);
 
@@ -358,7 +386,7 @@ export default function ItemsAdmin() {
                       value={form.category}
                       onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                     >
-                      {CATEGORIES.map((c) => (
+                      {selectCategoryOptions.map((c) => (
                         <option key={c} value={c}>
                           {c}
                         </option>

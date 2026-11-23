@@ -312,7 +312,7 @@ export default function PosPage() {
       id: 999,
       name: "Nezařazené",
       color: "",
-      icon: "",
+      icon: "FaCubes",
       position: 999,
       items: orphans,
     });
@@ -327,7 +327,10 @@ export default function PosPage() {
             (group) =>
               group.items.length > 0 && (
                 <section key={group.id} style={{ marginBottom: 10 }}>
-                  <h2 className="sectionTitle">{group.name}</h2>
+                  <h2 className="sectionTitle">
+                    <IconByName name={group.icon} fallback={Fa.FaCubes} size={18} />
+                    <span>{group.name}</span>
+                  </h2>
                   <div className="buttons">
                     {group.items.map((item) => (
                       <button
@@ -347,7 +350,10 @@ export default function PosPage() {
               ),
           )}
 
-          <h2 className="sectionTitle">Možnosti</h2>
+          <h2 className="sectionTitle">
+            <Fa.FaGear size={18} />
+            <span>Možnosti</span>
+          </h2>
           <div className="buttons">
             <button
               className="btn btn-warning btn-items--tri"

@@ -129,6 +129,9 @@
   max-width: 100%;
 }
 .sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   font-size: 18px;
   font-weight: 700;
   margin: var(--sp-2) 0 var(--sp-2);
