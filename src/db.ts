@@ -1,19 +1,27 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
-import { Tab } from "./types/db"; // Import typů, které jsme vytvořili výše
+
+let cachedDbPath: string | null = null;
+
+export function invalidateDbPath() {
+  cachedDbPath = null;
+}
 
 // Helper to get the current configured path
 export function getDbPath() {
+  if (cachedDbPath) return cachedDbPath;
+
   const configPath = path.join(process.cwd(), "src", "data", "dbposition.json");
   try {
     const configContent = fs.readFileSync(configPath, "utf8");
     const dbConfigPath = JSON.parse(configContent).dbPath;
-    return path.resolve(process.cwd(), dbConfigPath);
+    cachedDbPath = path.resolve(process.cwd(), dbConfigPath);
   } catch (e) {
     console.warn("Could not read dbposition.json, using default path: data/pos.db");
-    return path.resolve(process.cwd(), "data/pos.db");
+    cachedDbPath = path.resolve(process.cwd(), "data/pos.db");
   }
+  return cachedDbPath;
 }
 
 // Create .env from .env.example if it doesn't exist
@@ -194,37 +202,3 @@ process.on("SIGTERM", () => {
 });
 
 export default dbProxy;
-
-// Metoda pro "defragmentaci" ID tabů (srovná je 1, 2, 3... po smazání starých)
-// POZOR: Nepoužívat, pokud je zrovna někdo připojený a markuje, změní mu to ID pod rukama!
-export const reindexTabs = (tabsList?: Tab[]) => {
-  const database = getDb();
-  if (!database) return;
-
-  return database.transaction((tabsListInner?: Tab[]) => {
-    // 1. Načíst existující taby (seřadíme: Stoly -> Permanentní -> Ostatní dle času) pokud nejsou předány
-    const currentTabs =
-      tabsListInner ||
-      (database
-        .prepare(`
-      SELECT * FROM tabs 
-      ORDER BY is_table DESC, is_permanent DESC, created_at ASC
-    `)
-        .all() as Tab[]);
-
-    // 2. Smazat tabulku a resetovat autoincrement počítadlo
-    database.prepare("DELETE FROM tabs").run();
-    database.prepare("DELETE FROM sqlite_sequence WHERE name = 'tabs'").run();
-
-    // 3. Vložit zpátky s novými ID
-    const insert = database.prepare(`
-      INSERT INTO tabs (id, name, is_permanent, is_table, created_at, updated_at, items) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    let nextId = 1;
-    for (const t of currentTabs) {
-      insert.run(nextId++, t.name, t.is_permanent, t.is_table, t.created_at, t.updated_at, t.items);
-    }
-  })(tabsList);
-};

@@ -3,28 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
-import { Item } from "@/types/db";
-
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
-
-interface ParsedReceipt {
-  id: number;
-  created_at: string;
-  issued_to: string | null;
-  payment_method: string | null;
-  items: Item[];
-}
-
-interface ParsedTab {
-  id: number;
-  name: string;
-  is_permanent: number;
-  is_table: number;
-  is_staff: number;
-  created_at: string;
-  updated_at: string;
-  items: Item[];
-}
+import { Item, ParsedReceipt, ParsedTab } from "@/types/db";
+import { czk, isWithinDateRange } from "@/lib/format";
 
 export default function ClosingPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
@@ -120,43 +100,16 @@ export default function ClosingPage() {
   };
 
   // Filter receipts in-memory
-  const filteredReceipts = useMemo(() => {
-    const toTs = (d: string) => {
-      if (!d) return 0;
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    const fromBound = from ? new Date(`${from}T00:00:00`).getTime() : null;
-    const toBound = to ? new Date(`${to}T23:59:59`).getTime() : null;
-
-    return receipts.filter((r) => {
-      const created = toTs(r.created_at);
-      if (fromBound && created < fromBound) return false;
-      if (toBound && created > toBound) return false;
-      return true;
-    });
-  }, [receipts, from, to]);
+  const filteredReceipts = useMemo(
+    () => receipts.filter((r) => isWithinDateRange(r.created_at, from, to)),
+    [receipts, from, to],
+  );
 
   // Filter tabs in-memory
-  const filteredTabs = useMemo(() => {
-    const toTs = (d: string) => {
-      if (!d) return 0;
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    const fromBound = from ? new Date(`${from}T00:00:00`).getTime() : null;
-    const toBound = to ? new Date(`${to}T23:59:59`).getTime() : null;
-
-    return tabs.filter((t) => {
-      // Filter tabs based on their creation date
-      const created = toTs(t.created_at);
-      if (fromBound && created < fromBound) return false;
-      if (toBound && created > toBound) return false;
-      return true;
-    });
-  }, [tabs, from, to]);
+  const filteredTabs = useMemo(
+    () => tabs.filter((t) => isWithinDateRange(t.created_at, from, to)),
+    [tabs, from, to],
+  );
 
   // Aggregate stats based on active view mode
   const stats = useMemo(() => {
@@ -854,19 +807,7 @@ export default function ClosingPage() {
       {/* Embedded print styles */}
       <style jsx global>{`
         @media print {
-          /* Hide standard elements */
-          body, html {
-            background: white !important;
-            color: black !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .navbar {
-            display: none !important;
-          }
           .print-only {
-            display: block !important;
             width: 76mm; /* Standard receipt paper width */
             margin: 0 auto;
             font-family: 'Courier New', Courier, monospace;
@@ -875,11 +816,6 @@ export default function ClosingPage() {
             color: black !important;
             background: white !important;
             padding: 10px;
-          }
-        }
-        @media screen {
-          .print-only {
-            display: none !important;
           }
         }
       `}</style>

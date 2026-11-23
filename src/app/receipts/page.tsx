@@ -3,27 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
-import { Item } from "@/types/db";
-
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
-
-interface ParsedReceipt {
-  id: number;
-  created_at: string;
-  issued_to: string | null;
-  items: Item[];
-}
-
-interface ParsedTab {
-  id: number;
-  name: string;
-  is_permanent: number;
-  is_table: number;
-  is_staff: number;
-  created_at: string;
-  updated_at: string;
-  items: Item[];
-}
+import { ParsedReceipt, ParsedTab } from "@/types/db";
+import { czk, isWithinDateRange, toTimestamp } from "@/lib/format";
 
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
@@ -122,15 +103,6 @@ export default function ReceiptsPage() {
 
   // --- seřazení & filtrování ---
   const filtered = useMemo(() => {
-    const toTs = (d: string) => {
-      if (!d) return 0;
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    const fromBound = from ? new Date(`${from}T00:00:00`).getTime() : null;
-    const toBound = to ? new Date(`${to}T23:59:59`).getTime() : null;
-
     const dataset =
       viewMode === "receipts"
         ? receipts.map((r) => ({
@@ -151,12 +123,9 @@ export default function ReceiptsPage() {
           }));
 
     return [...dataset]
-      .sort((a, b) => toTs(b?.created_at) - toTs(a?.created_at))
+      .sort((a, b) => toTimestamp(b?.created_at) - toTimestamp(a?.created_at))
       .filter((r) => {
-        const created = toTs(r?.created_at);
-
-        if (fromBound && Number.isFinite(fromBound) && created < fromBound) return false;
-        if (toBound && Number.isFinite(toBound) && created > toBound) return false;
+        if (!isWithinDateRange(r?.created_at, from, to)) return false;
 
         if (issuedTo && String(r?.issued_to ?? "").trim() !== String(issuedTo).trim()) return false;
 
@@ -416,20 +385,6 @@ export default function ReceiptsPage() {
       {/* Embedded print styles */}
       <style jsx global>{`
         @media print {
-          /* Hide standard elements */
-          body, html {
-            background: white !important;
-            color: black !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .navbar {
-            display: none !important;
-          }
-          .print-only {
-            display: block !important;
-          }
           .container {
             width: 76mm !important;
             max-width: 76mm !important;
@@ -491,11 +446,6 @@ export default function ReceiptsPage() {
           }
           .totalPrice {
             color: black !important;
-          }
-        }
-        @media screen {
-          .print-only {
-            display: none !important;
           }
         }
       `}</style>

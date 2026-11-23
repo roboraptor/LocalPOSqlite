@@ -4,11 +4,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import * as Fa from "react-icons/fa6";
 import Modal from "@/components/Modal";
+import IconByName from "@/components/IconByName";
 import { Item, Category, Tab } from "@/types/db";
 import { QRCodeSVG } from "qrcode.react";
-import { generateSpaydString } from "@/lib/spayd";
+import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
+import { czk } from "@/lib/format";
 
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
 const modal_timeout = 3000;
 
 export default function PosPage() {
@@ -95,21 +96,15 @@ export default function PosPage() {
     )
       return null;
 
-    const cleanIban = generalSettings.bank_iban.replace(/\s+/g, "").toUpperCase();
-    if (cleanIban.length < 15) return null;
-
-    const params = new URLSearchParams({
-      iban: cleanIban,
-      amount: total.toFixed(2),
+    return buildPayliboUrl("image", {
+      iban: generalSettings.bank_iban,
+      amount: total,
       currency: "CZK",
-      message: generalSettings.trx_msg || "Platba",
-      size: "256",
-      branding: "true",
+      ks: generalSettings.trx_ks || undefined,
+      msg: generalSettings.trx_msg || "Platba",
+      size: 256,
+      branding: true,
     });
-
-    if (generalSettings.trx_ks) params.append("ks", generalSettings.trx_ks);
-
-    return `http://api.paylibo.com/paylibo/generator/image?${params.toString()}`;
   }, [generalSettings, total, receipt]);
 
   // --- Synchronizace s klientským displejem ---
@@ -334,26 +329,19 @@ export default function PosPage() {
                 <section key={group.id} style={{ marginBottom: 10 }}>
                   <h2 className="sectionTitle">{group.name}</h2>
                   <div className="buttons">
-                    {group.items.map((item) => {
-                      // Dynamická ikona
-                      const IconComp =
-                        item.icon && (Fa as any)[item.icon]
-                          ? (Fa as any)[item.icon]
-                          : Fa.FaUtensils;
-                      return (
-                        <button
-                          key={item.id}
-                          className="btn-items btn-success btn-items--tri"
-                          onClick={() => addItem(item)}
-                        >
-                          <div className="btn-items__title">{item.name}</div>
-                          <div className="btn-items__icon">
-                            <IconComp />
-                          </div>
-                          <div className="btn-items__price">{czk.format(item.price)}</div>
-                        </button>
-                      );
-                    })}
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        className="btn-items btn-success btn-items--tri"
+                        onClick={() => addItem(item)}
+                      >
+                        <div className="btn-items__title">{item.name}</div>
+                        <div className="btn-items__icon">
+                          <IconByName name={item.icon} fallback={Fa.FaUtensils} size={null} />
+                        </div>
+                        <div className="btn-items__price">{czk.format(item.price)}</div>
+                      </button>
+                    ))}
                   </div>
                 </section>
               ),
@@ -415,7 +403,7 @@ export default function PosPage() {
               onClick={() => setShowQRModal(true)}
               disabled={receipt.length === 0}
             >
-              <div className="btn-items__title">{activeTab ? "Zaplatit QR" : "Zaplatit QR"}</div>
+              <div className="btn-items__title">Zaplatit QR</div>
               <div className="btn-items__icon">
                 <Fa.FaQrcode />
               </div>

@@ -3,12 +3,7 @@
 import React, { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
-
-function IconByName({ name, size = 18 }: { name: string | null | undefined; size?: number }) {
-  const iconName = name as keyof typeof Fa;
-  const Comp = name && Fa[iconName] ? Fa[iconName] : Fa.FaRegSquare;
-  return <Comp size={size} />;
-}
+import IconByName from "@/components/IconByName";
 
 export default function IconsSettings() {
   const [icons, setIcons] = useState<string[]>([]);

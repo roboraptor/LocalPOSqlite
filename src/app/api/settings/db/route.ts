@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
-import { initDb, getDb } from "@/db";
+import { initDb, getDb, getDbPath, invalidateDbPath } from "@/db";
 import { seedDb } from "@/dbSeed";
 
 const configPath = path.join(process.cwd(), "src", "data", "dbposition.json");
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   try {
     const { dbPath } = await request.json();
     fs.writeFileSync(configPath, JSON.stringify({ dbPath }, null, 2));
+    invalidateDbPath();
     return NextResponse.json({
       message: "Path updated. You may need to restart the application for changes to take effect.",
     });
@@ -31,8 +32,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const { action } = await request.json();
-    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const dbFullPath = path.resolve(process.cwd(), config.dbPath);
+    const dbFullPath = getDbPath();
 
     const dbDir = path.dirname(dbFullPath);
     if (!fs.existsSync(dbDir) && action !== "verify") {

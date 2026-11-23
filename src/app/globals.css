@@ -418,3 +418,23 @@ pre {
 .badge-staff {
   background: var(--danger);
 }
+
+@media print {
+  body,
+  html {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print,
+  .navbar {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}

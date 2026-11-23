@@ -8,7 +8,7 @@ export default function Header() {
   const [expanded, setExpanded] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === "/cd" || pathname === "/customer-display") {
+  if (pathname === "/cd") {
     return null;
   }
 

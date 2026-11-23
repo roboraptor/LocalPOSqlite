@@ -4,13 +4,8 @@ import { useState, useEffect, FormEvent } from "react";
 import { Category } from "@/types/db";
 import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
+import IconByName from "@/components/IconByName";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
-
-function IconByName({ name, size = 18 }: { name: string | null | undefined; size?: number }) {
-  const iconName = name as keyof typeof Fa;
-  const Comp = name && Fa[iconName] ? Fa[iconName] : Fa.FaRegSquare;
-  return <Comp size={size} />;
-}
 
 export default function CategoriesSettings() {
   const [categories, setCategories] = useState<Category[]>([]);

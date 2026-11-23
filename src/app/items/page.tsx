@@ -2,21 +2,14 @@
 "use client";
 
 import { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from "react";
-import Link from "next/link";
 import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
+import IconByName from "@/components/IconByName";
 import { Item } from "@/types/db";
+import { czk } from "@/lib/format";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
 
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
 const CATEGORIES = ["Nápoje", "Jídlo", "Ostatní"];
-
-// Pomocná komponenta pro dynamické ikony
-function IconByName({ name, size = 18 }: { name: string | null | undefined; size?: number }) {
-  const iconName = name as keyof typeof Fa;
-  const Comp = name && Fa[iconName] ? Fa[iconName] : Fa.FaRegSquare;
-  return <Comp size={size} />;
-}
 
 // Nová komponenta pro kartu položky pro lepší přehlednost
 function ItemCard({

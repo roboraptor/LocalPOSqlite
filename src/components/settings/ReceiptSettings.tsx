@@ -1,67 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import * as Fa from "react-icons/fa6";
+import { useGeneralSettings } from "@/hooks/useGeneralSettings";
 
 export default function ReceiptSettings() {
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    currency: "CZK",
-    tax_rate: 21,
-    tax_enabled: false,
-    receipt_title: "",
-    receipt_header: "",
-    receipt_header_enabled: false,
-    receipt_footer: "",
-    receipt_footer_enabled: false,
-  });
-
-  useEffect(() => {
-    fetch("/api/general")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && !data.error && Object.keys(data).length > 0) {
-          setFormData({
-            currency: data.currency || "CZK",
-            tax_rate: data.tax_rate || 21,
-            tax_enabled: Boolean(data.tax_enabled),
-            receipt_title: data.receipt_title || "",
-            receipt_header: data.receipt_header || "",
-            receipt_header_enabled: Boolean(data.receipt_header_enabled),
-            receipt_footer: data.receipt_footer || "",
-            receipt_footer_enabled: Boolean(data.receipt_footer_enabled),
-          });
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const target = e.target as HTMLInputElement;
-    const value = target.type === "checkbox" ? target.checked : target.value;
-    const name = target.name;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/general", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) alert("Nastavení uloženo");
-      else alert("Chyba při ukládání");
-    } catch (error) {
-      console.error(error);
-      alert("Chyba při ukládání");
-    }
-  };
+  const { loading, formData, handleChange, handleSubmit } = useGeneralSettings(
+    {
+      currency: "CZK",
+      tax_rate: 21,
+      tax_enabled: false,
+      receipt_title: "",
+      receipt_header: "",
+      receipt_header_enabled: false,
+      receipt_footer: "",
+      receipt_footer_enabled: false,
+    },
+    (data) => ({
+      currency: data.currency || "CZK",
+      tax_rate: data.tax_rate || 21,
+      tax_enabled: Boolean(data.tax_enabled),
+      receipt_title: data.receipt_title || "",
+      receipt_header: data.receipt_header || "",
+      receipt_header_enabled: Boolean(data.receipt_header_enabled),
+      receipt_footer: data.receipt_footer || "",
+      receipt_footer_enabled: Boolean(data.receipt_footer_enabled),
+    }),
+  );
 
   if (loading) return <div className="card skeleton"></div>;
 

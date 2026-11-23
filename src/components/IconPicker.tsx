@@ -62,8 +62,6 @@ export default function IconPicker({
   const pages = Math.max(1, Math.ceil(list.length / pageSize));
   const pageItems = list.slice(page * pageSize, page * pageSize + pageSize);
 
-  const Selected = value && Fa[value] ? Fa[value] : null;
-
   // Vytvoří seznam komponent pro oblíbené ikony
   const favoriteItems = useMemo(
     () =>
@@ -97,14 +95,6 @@ export default function IconPicker({
 
   return (
     <div className="ip">
-      {/* <div className="ip-current">
-        <span className="form-label">Vybráno:</span>
-        <div style={{ width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}> 
-          {Selected ? <Selected size={24} /> : <span className="muted">—</span>}
-        </div>
-        <code>{value || "—"}</code>
-      </div> */}
-
       {/* Sekce Oblíbené - zobrazí se jen když se nehledá */}
       {q === "" && !isBrowsingAll && favoriteItems.length > 0 && (
         <div className="ip-favorites">

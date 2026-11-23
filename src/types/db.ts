@@ -39,6 +39,14 @@ export interface Receipt {
   eet_pkp: string | null;
 }
 
+export interface ParsedReceipt extends Omit<Receipt, "items"> {
+  items: Item[];
+}
+
+export interface ParsedTab extends Omit<Tab, "items"> {
+  items: Item[];
+}
+
 export interface GeneralSettings {
   organization_name: string;
   organization_address: string;

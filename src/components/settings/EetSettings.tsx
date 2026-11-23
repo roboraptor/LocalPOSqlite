@@ -1,53 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import * as Fa from "react-icons/fa6";
+import { useGeneralSettings } from "@/hooks/useGeneralSettings";
 
 export default function EetSettings() {
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    eet_enable: false,
-  });
-
-  useEffect(() => {
-    fetch("/api/general")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && !data.error && Object.keys(data).length > 0) {
-          setFormData({
-            eet_enable: Boolean(data.eet_enable),
-          });
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const target = e.target as HTMLInputElement;
-    const value = target.type === "checkbox" ? target.checked : target.value;
-    const name = target.name;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/general", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) alert("Nastavení uloženo");
-      else alert("Chyba při ukládání");
-    } catch (error) {
-      console.error(error);
-      alert("Chyba při ukládání");
-    }
-  };
+  const { loading, formData, handleChange, handleSubmit } = useGeneralSettings(
+    { eet_enable: false },
+    (data) => ({ eet_enable: Boolean(data.eet_enable) }),
+  );
 
   if (loading) return <div className="card skeleton"></div>;
 

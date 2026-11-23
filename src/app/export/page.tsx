@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import * as Fa from "react-icons/fa6";
-
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
 
 export default function ExportPage() {
   const [loading, setLoading] = useState(false);

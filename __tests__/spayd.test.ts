@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSpaydString } from "@/lib/spayd";
+import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
 
 describe("SPAYD Generator", () => {
   it("should generate basic SPAYD string with only IBAN", () => {
@@ -39,5 +39,41 @@ describe("SPAYD Generator", () => {
   it("should return empty string if no IBAN is provided", () => {
     const result = generateSpaydString({ iban: "" });
     expect(result).toBe("");
+  });
+});
+
+describe("buildPayliboUrl", () => {
+  it("returns null for missing or too-short IBAN", () => {
+    expect(buildPayliboUrl("image", { iban: "" })).toBeNull();
+    expect(buildPayliboUrl("image", { iban: "CZ1234" })).toBeNull();
+  });
+
+  it("builds image URL with normalized IBAN, formatted amount, size and branding", () => {
+    const url = buildPayliboUrl("image", {
+      iban: "cz65 0800 0000 1920 0014 5399",
+      amount: 150,
+      currency: "czk",
+      ks: "0308",
+      msg: "Platba",
+      size: 256,
+      branding: true,
+    });
+    expect(url).toBe(
+      "http://api.paylibo.com/paylibo/generator/image?iban=CZ6508000000192000145399&amount=150.00&currency=CZK&ks=0308&message=Platba&size=256&branding=true",
+    );
+  });
+
+  it("builds string URL without image-only params", () => {
+    const url = buildPayliboUrl("string", {
+      iban: "CZ6508000000192000145399",
+      amount: 250,
+      currency: "CZK",
+      vs: "1234567890",
+      size: 128,
+      branding: true,
+    });
+    expect(url).toBe(
+      "http://api.paylibo.com/paylibo/generator/string?iban=CZ6508000000192000145399&amount=250.00&currency=CZK&vs=1234567890",
+    );
   });
 });

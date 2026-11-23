@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import { Tab, Item } from "@/types/db";
-
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
+import { czk } from "@/lib/format";
 
 export default function TablesSettings() {
   const [tabs, setTabs] = useState<Tab[]>([]);

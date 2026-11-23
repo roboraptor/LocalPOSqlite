@@ -4,18 +4,8 @@
 import { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import { QRCodeSVG } from "qrcode.react";
-import { Item } from "@/types/db";
-
-const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK" });
-
-interface CustomerState {
-  receipt: Item[];
-  activeTab: any;
-  showQRModal: boolean;
-  spaydString: string;
-  externalQrUrl: string | null;
-  status: "pending" | "completed";
-}
+import { czk } from "@/lib/format";
+import type { CustomerState } from "@/lib/customerState";
 
 export default function CustomerDisplayPage() {
   const [state, setState] = useState<CustomerState>({

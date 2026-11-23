@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
 import { QRCodeSVG } from "qrcode.react";
-import { generateSpaydString } from "@/lib/spayd";
+import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
+import { useGeneralSettings } from "@/hooks/useGeneralSettings";
 
 /**
  * Validuje IBAN pomocí algoritmu Modulo 97 (ISO 7064).
@@ -50,83 +51,77 @@ function decodeCzechIBAN(iban: string): string {
   return `${prefix ? prefix + "-" : ""}${account}/${bankCode}`;
 }
 
+const parseBool = (val: unknown) => val === 1 || val === "1" || val === true || val === "true";
+
 export default function PaymentSettings() {
-  const [loading, setLoading] = useState(true);
   const [ibanStatus, setIbanStatus] = useState<"valid" | "invalid" | null>(null);
   const [testAmount, setTestAmount] = useState<string>("250.00");
-  const [formData, setFormData] = useState({
-    bank_iban: "",
-    trx_msg: "",
-    trx_vs_enabled: false,
-    trx_ks: "",
-    use_external_qr_api: false,
-  });
 
-  useEffect(() => {
-    fetch("/api/general")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && !data.error && Object.keys(data).length > 0) {
-          const iban = data.bank_iban || "";
-          setFormData({
-            bank_iban: iban,
-            trx_msg: data.trx_msg || "",
-            trx_vs_enabled:
-              data.trx_vs_enabled === 1 ||
-              data.trx_vs_enabled === "1" ||
-              data.trx_vs_enabled === true ||
-              data.trx_vs_enabled === "true",
-            trx_ks: data.trx_ks || "",
-            use_external_qr_api:
-              data.use_external_qr_api === 1 ||
-              data.use_external_qr_api === "1" ||
-              data.use_external_qr_api === true ||
-              data.use_external_qr_api === "true",
-          });
-          if (iban) setIbanStatus(isValidIBAN(iban) ? "valid" : "invalid");
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+  const {
+    loading,
+    formData,
+    handleChange: baseHandleChange,
+    handleSubmit: baseHandleSubmit,
+  } = useGeneralSettings(
+    {
+      bank_iban: "",
+      trx_msg: "",
+      trx_vs_enabled: false,
+      trx_ks: "",
+      use_external_qr_api: false,
+    },
+    (data) => ({
+      bank_iban: data.bank_iban || "",
+      trx_msg: data.trx_msg || "",
+      trx_vs_enabled: parseBool(data.trx_vs_enabled),
+      trx_ks: data.trx_ks || "",
+      use_external_qr_api: parseBool(data.use_external_qr_api),
+    }),
+    {
+      onLoaded: (mapped) => {
+        if (mapped.bank_iban) setIbanStatus(isValidIBAN(mapped.bank_iban) ? "valid" : "invalid");
+      },
+    },
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const target = e.target as HTMLInputElement;
-    const value = target.type === "checkbox" ? target.checked : target.value;
-    const name = target.name;
-
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (name === "bank_iban") {
-      const val = value as string;
+    baseHandleChange(e);
+    if (e.target.name === "bank_iban") {
+      const val = e.target.value;
       if (!val) setIbanStatus(null);
       else setIbanStatus(isValidIBAN(val) ? "valid" : "invalid");
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) =>
+    baseHandleSubmit(e, () => {
+      if (formData.bank_iban && ibanStatus === "invalid") {
+        return confirm("IBAN se zdá být neplatný. Chcete přesto pokračovat v ukládání?");
+      }
+      return true;
+    });
 
-    if (formData.bank_iban && ibanStatus === "invalid") {
-      if (!confirm("IBAN se zdá být neplatný. Chcete přesto pokračovat v ukládání?")) return;
-    }
+  const previewOptions = useMemo(
+    () => ({
+      iban: formData.bank_iban,
+      amount: Number(testAmount) || 0,
+      currency: "CZK",
+      vs: formData.trx_vs_enabled ? "1234567890" : "",
+      ks: formData.trx_ks,
+      msg: formData.trx_msg,
+    }),
+    [formData, testAmount],
+  );
 
-    try {
-      const res = await fetch("/api/general", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) alert("Nastavení uloženo");
-      else alert("Chyba při ukládání");
-    } catch (error) {
-      console.error(error);
-      alert("Chyba při ukládání");
-    }
-  };
+  const previewSpayd = useMemo(() => generateSpaydString(previewOptions), [previewOptions]);
+  const previewPayliboImageUrl = useMemo(
+    () => buildPayliboUrl("image", { ...previewOptions, ks: undefined, size: 128, branding: true }),
+    [previewOptions],
+  );
+  const previewPayliboStringUrl = useMemo(
+    () => buildPayliboUrl("string", { ...previewOptions, ks: undefined }),
+    [previewOptions],
+  );
 
   if (loading) return <div className="card skeleton"></div>;
 
@@ -243,14 +238,7 @@ export default function PaymentSettings() {
               <div className="row align-items-center bg-dark p-3 rounded mx-0 mb-3">
                 <div className="col-auto">
                   <QRCodeSVG
-                    value={generateSpaydString({
-                      iban: formData.bank_iban,
-                      amount: Number(testAmount) || 0,
-                      currency: "CZK",
-                      vs: formData.trx_vs_enabled ? "1234567890" : "", // Sample VS for preview
-                      ks: formData.trx_ks,
-                      msg: formData.trx_msg,
-                    })}
+                    value={previewSpayd}
                     size={128}
                     level="M"
                     includeMargin={true}
@@ -261,16 +249,7 @@ export default function PaymentSettings() {
                     <label className="small fw-bold text-mute d-block">
                       SPAYD Řetězec (Lokální):
                     </label>
-                    <code className="text-break small">
-                      {generateSpaydString({
-                        iban: formData.bank_iban,
-                        amount: Number(testAmount) || 0,
-                        currency: "CZK",
-                        vs: formData.trx_vs_enabled ? "1234567890" : "",
-                        ks: formData.trx_ks,
-                        msg: formData.trx_msg,
-                      })}
-                    </code>
+                    <code className="text-break small">{previewSpayd}</code>
                   </div>
                   <div className="text-mute small">
                     <Fa.FaCircleInfo className="me-1" />
@@ -281,11 +260,11 @@ export default function PaymentSettings() {
               </div>
 
               {/* Externí API (Paylibo) */}
-              {formData.use_external_qr_api ? (
+              {formData.use_external_qr_api && previewPayliboImageUrl && previewPayliboStringUrl ? (
                 <div className="row align-items-center bg-dark p-3 rounded mx-0">
                   <div className="col-auto">
                     <img
-                      src={`http://api.paylibo.com/paylibo/generator/image?iban=${formData.bank_iban.replace(/\s+/g, "")}&amount=${testAmount || "0.00"}&currency=CZK&vs=${formData.trx_vs_enabled ? "1234567890" : ""}&message=${encodeURIComponent(formData.trx_msg)}&size=128&branding=true`}
+                      src={previewPayliboImageUrl}
                       alt="QR Platba"
                       width={128}
                       height={128}
@@ -298,7 +277,7 @@ export default function PaymentSettings() {
                         SPAYD Řetězec (Paylibo API):
                       </label>
                       <iframe
-                        src={`http://api.paylibo.com/paylibo/generator/string?iban=${formData.bank_iban.replace(/\s+/g, "")}&amount=${testAmount || "0.00"}&currency=CZK&vs=${formData.trx_vs_enabled ? "1234567890" : ""}&message=${encodeURIComponent(formData.trx_msg)}`}
+                        src={previewPayliboStringUrl}
                         style={{
                           width: "100%",
                           height: "50px",
