@@ -34,6 +34,7 @@ export interface Receipt {
   issued_to: string | null;
   items: string; // JSON string
   payment_method: string | null;
+  is_staff?: number;
   eet_fik: string | null;
   eet_bkp: string | null;
   eet_pkp: string | null;

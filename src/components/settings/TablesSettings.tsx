@@ -3,23 +3,31 @@
 import { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import { Tab, Item } from "@/types/db";
-import { czk } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 export default function TablesSettings() {
   const [tabs, setTabs] = useState<Tab[]>([]);
+  const [currency, setCurrency] = useState("CZK");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
   const [formName, setFormName] = useState("");
-  const [isTable, setIsTable] = useState(true);
+  const [accountType, setAccountType] = useState<"table" | "staff" | "account">("table");
 
   const load = async () => {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch("/api/tabs", { cache: "no-store" });
-      if (!res.ok) throw new Error("Nepodařilo se načíst stoly a účty.");
-      setTabs(await res.json());
+      const [tabsRes, generalRes] = await Promise.all([
+        fetch("/api/tabs", { cache: "no-store" }),
+        fetch("/api/general", { cache: "no-store" }),
+      ]);
+      if (!tabsRes.ok) throw new Error("Nepodařilo se načíst stoly a účty.");
+      setTabs(await tabsRes.json());
+      if (generalRes.ok) {
+        const generalData = await generalRes.json();
+        if (generalData?.currency) setCurrency(generalData.currency);
+      }
     } catch (e: any) {
       setErr(e.message);
     } finally {
@@ -36,15 +44,19 @@ export default function TablesSettings() {
     const name = formName.trim();
     if (!name) return alert("Název nesmí být prázdný.");
 
+    const isTable = accountType === "table";
+    const isStaff = accountType === "staff";
+    const isPermanent = isTable || isStaff ? 1 : 0;
+
     try {
       const res = await fetch("/api/tabs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          is_permanent: isTable ? 1 : 0,
+          is_permanent: isPermanent,
           is_table: isTable,
-          is_staff: false,
+          is_staff: isStaff,
           items: [],
         }),
       });
@@ -72,7 +84,8 @@ export default function TablesSettings() {
   };
 
   const tables = tabs.filter((t) => t.is_table);
-  const accounts = tabs.filter((t) => !t.is_table);
+  const staffAccounts = tabs.filter((t) => !t.is_table && t.is_staff);
+  const accounts = tabs.filter((t) => !t.is_table && !t.is_staff);
 
   return (
     <div className="card h-100">
@@ -104,10 +117,11 @@ export default function TablesSettings() {
               <label className="form-label">Typ</label>
               <select
                 className="input select"
-                value={isTable ? "table" : "account"}
-                onChange={(e) => setIsTable(e.target.value === "table")}
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value as "table" | "staff" | "account")}
               >
                 <option value="table">Permanentní stůl (Zůstává i po zaplacení)</option>
+                <option value="staff">Permanentní účet – Staff (Zůstává i po zaplacení)</option>
                 <option value="account">Dočasný účet (Smaže se po zaplacení)</option>
               </select>
             </div>
@@ -150,7 +164,58 @@ export default function TablesSettings() {
                         className="totalPrice"
                         style={{ color: total > 0 ? "var(--danger)" : "var(--success)" }}
                       >
-                        {total > 0 ? `Obsazeno (${czk.format(total)})` : "Volný"}
+                        {total > 0 ? `Obsazeno (${formatCurrency(total, currency)})` : "Volný"}
+                      </div>
+                    </header>
+                    <div
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        gap: "0.75rem",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                      }}
+                    >
+                      <button
+                        className="btn btn-danger"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                        onClick={() => handleDelete(tab.id)}
+                      >
+                        <Fa.FaTrashCan /> Smazat
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+
+            <h6 className="mb-3 text-mute">Permanentní účty (Staff)</h6>
+            {staffAccounts.length === 0 && <p className="muted">Žádné staff účty.</p>}
+            <div className="grid-tiny" style={{ marginBottom: "2rem" }}>
+              {staffAccounts.map((tab) => {
+                const total = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
+                return (
+                  <section
+                    key={tab.id}
+                    className="card cardPad"
+                    style={{ background: "var(--surface-2)" }}
+                  >
+                    <header
+                      className="receiptHeader"
+                      style={{ padding: 0, borderBottom: "none", alignItems: "center" }}
+                    >
+                      <div
+                        className="receiptTitle"
+                        style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <Fa.FaUserTie />
+                        <span>{tab.name}</span>
+                      </div>
+                      <div
+                        className="totalPrice"
+                        style={{ color: total > 0 ? "var(--danger)" : "var(--success)" }}
+                      >
+                        {total > 0 ? `Obsazeno (${formatCurrency(total, currency)})` : "Volný"}
                       </div>
                     </header>
                     <div
@@ -197,7 +262,7 @@ export default function TablesSettings() {
                         <Fa.FaUser />
                         <span>{tab.name}</span>
                       </div>
-                      <div className="totalPrice">{czk.format(total)}</div>
+                      <div className="totalPrice">{formatCurrency(total, currency)}</div>
                     </header>
                     <div
                       style={{

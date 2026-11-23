@@ -8,7 +8,7 @@ import IconByName from "@/components/IconByName";
 import { Item, Category, Tab } from "@/types/db";
 import { QRCodeSVG } from "qrcode.react";
 import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
-import { czk } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 const modal_timeout = 3000;
 
@@ -35,9 +35,11 @@ export default function PosPage() {
 
   const [showNameModal, setShowNameModal] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
   const [tabInputName, setTabInputName] = useState("");
 
   const [showQRModal, setShowQRModal] = useState(false);
+  const [nextReceiptId, setNextReceiptId] = useState<string>("");
   const [generalSettings, setGeneralSettings] = useState<any>({});
 
   // --- Načtení dat při startu ---
@@ -76,17 +78,26 @@ export default function PosPage() {
     setReceipt((r) => r.filter((_, idx) => idx !== indexToRemove));
 
   const total = receipt.reduce((sum, item) => sum + (item.price || 0), 0);
+  const currency = generalSettings?.currency || "CZK";
+  const fmt = (amount: number) => formatCurrency(amount, currency);
+
+  const tables = useMemo(() => tabsList.filter((t) => t.is_table), [tabsList]);
+  const staffTabs = useMemo(() => tabsList.filter((t) => !t.is_table && t.is_staff), [tabsList]);
+  const regularTabs = useMemo(() => tabsList.filter((t) => !t.is_table && !t.is_staff), [tabsList]);
+
+  const vs = generalSettings?.trx_vs_enabled && nextReceiptId ? nextReceiptId : undefined;
 
   const spaydString = useMemo(() => {
     if (!generalSettings?.bank_iban || receipt.length === 0) return "";
     return generateSpaydString({
       iban: generalSettings.bank_iban,
       amount: total,
-      currency: "CZK",
+      currency,
+      vs,
       msg: generalSettings.trx_msg || "Platba",
       ks: generalSettings.trx_ks || "0308",
     });
-  }, [generalSettings, total, receipt]);
+  }, [generalSettings, total, receipt, currency, vs]);
 
   const externalQrUrl = useMemo(() => {
     if (
@@ -99,13 +110,31 @@ export default function PosPage() {
     return buildPayliboUrl("image", {
       iban: generalSettings.bank_iban,
       amount: total,
-      currency: "CZK",
+      currency,
+      vs,
       ks: generalSettings.trx_ks || undefined,
       msg: generalSettings.trx_msg || "Platba",
       size: 256,
       branding: true,
     });
-  }, [generalSettings, total, receipt]);
+  }, [generalSettings, total, receipt, currency, vs]);
+
+  const openQRModal = async () => {
+    if (generalSettings?.trx_vs_enabled) {
+      try {
+        const res = await fetch("/api/receipts?nextId=1", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setNextReceiptId(data?.nextId ? String(data.nextId) : "");
+        }
+      } catch (err) {
+        console.error("Nepodařilo se načíst další ID účtenky:", err);
+      }
+    } else {
+      setNextReceiptId("");
+    }
+    setShowQRModal(true);
+  };
 
   // --- Synchronizace s klientským displejem ---
   useEffect(() => {
@@ -181,6 +210,7 @@ export default function PosPage() {
     }
     setShowNameModal(false);
     setShowTableModal(false);
+    setShowStaffModal(false);
   };
 
   const handleCreateNewTab = async (isTable: boolean, forcedName?: string) => {
@@ -245,15 +275,15 @@ export default function PosPage() {
           receipt,
           issued_to: activeTab ? activeTab.name : null,
           payment_method: paymentMethod,
+          is_staff: activeTab ? Boolean(activeTab.is_staff) : false,
         }),
       });
 
       if (!res.ok) throw new Error("Chyba při ukládání.");
 
-      // Pokud platíme tab, vymažeme ho (nebo vyprázdníme stůl)
+      // Pokud platíme tab, vymažeme ho (u permanentních účtů/stolů/staff ho jen vyprázdníme)
       if (activeTab) {
-        if (activeTab.is_table) {
-          // Stůl se nemaže, jen vyprázdní
+        if (activeTab.is_table || activeTab.is_permanent || activeTab.is_staff) {
           await fetch("/api/tabs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -342,7 +372,7 @@ export default function PosPage() {
                         <div className="btn-items__icon">
                           <IconByName name={item.icon} fallback={Fa.FaUtensils} size={null} />
                         </div>
-                        <div className="btn-items__price">{czk.format(item.price)}</div>
+                        <div className="btn-items__price">{fmt(item.price)}</div>
                       </button>
                     ))}
                   </div>
@@ -377,15 +407,28 @@ export default function PosPage() {
                 <Fa.FaUser />
               </div>
             </button>
-            <button
-              className="btn btn-warning btn-items--tri"
-              onClick={() => setShowTableModal(true)}
-            >
-              <div className="btn-items__title">Na stůl</div>
-              <div className="btn-items__icon">
-                <Fa.FaChair />
-              </div>
-            </button>
+            {tables.length > 0 && (
+              <button
+                className="btn btn-warning btn-items--tri"
+                onClick={() => setShowTableModal(true)}
+              >
+                <div className="btn-items__title">Na stůl</div>
+                <div className="btn-items__icon">
+                  <Fa.FaChair />
+                </div>
+              </button>
+            )}
+            {staffTabs.length > 0 && (
+              <button
+                className="btn btn-warning btn-items--tri"
+                onClick={() => setShowStaffModal(true)}
+              >
+                <div className="btn-items__title">Na staff</div>
+                <div className="btn-items__icon">
+                  <Fa.FaUserTie />
+                </div>
+              </button>
+            )}
             {activeTab && (
               <button className="btn btn-warning btn-items--tri" onClick={() => handleSaveTab()}>
                 <div className="btn-items__title">Odložit</div>
@@ -406,7 +449,7 @@ export default function PosPage() {
             </button>
             <button
               className="btn btn-primary btn-items--tri"
-              onClick={() => setShowQRModal(true)}
+              onClick={openQRModal}
               disabled={receipt.length === 0}
             >
               <div className="btn-items__title">Zaplatit QR</div>
@@ -432,7 +475,9 @@ export default function PosPage() {
       <aside className="receiptColumn">
         <div className="receipt">
           <h3 className="receipt__title">
-            Účtenka {activeTab && `(${activeTab.is_table ? "Stůl" : "Účet"}: ${activeTab.name})`}
+            Účtenka{" "}
+            {activeTab &&
+              `(${activeTab.is_table ? "Stůl" : activeTab.is_staff ? "Staff" : "Účet"}: ${activeTab.name})`}
           </h3>
 
           {receipt.length === 0 ? (
@@ -450,7 +495,7 @@ export default function PosPage() {
                 >
                   <span className="receipt__name">{item.name}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span className="receipt__price">{czk.format(item.price || 0)}</span>
+                    <span className="receipt__price">{fmt(item.price || 0)}</span>
                     {selectedReceiptItemIdx === idx && (
                       <button
                         className="btn btn-danger"
@@ -474,7 +519,7 @@ export default function PosPage() {
               ))}
               <div className="receipt__total">
                 <span>Celkem</span>
-                <span>{czk.format(total)}</span>
+                <span>{fmt(total)}</span>
               </div>
             </>
           )}
@@ -532,36 +577,32 @@ export default function PosPage() {
           </div>
         </div>
 
-        {tabsList.filter((t) => !t.is_table).length > 0 && (
+        {regularTabs.length > 0 && (
           <div style={{ marginTop: "20px" }}>
             <h4 style={{ marginBottom: "10px" }}>Otevřené účty:</h4>
             <div
               className="grid-tiny"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
             >
-              {tabsList
-                .filter((t) => !t.is_table)
-                .map((tab) => (
-                  <button
-                    key={tab.id}
-                    className="btn btn-warning"
-                    onClick={() => handleSelectTab(tab)}
-                    style={{
-                      height: "60px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <strong>{tab.name}</strong>
-                    <small>
-                      {czk.format(
-                        tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0),
-                      )}
-                    </small>
-                  </button>
-                ))}
+              {regularTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className="btn btn-warning"
+                  onClick={() => handleSelectTab(tab)}
+                  style={{
+                    height: "60px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <strong>{tab.name}</strong>
+                  <small>
+                    {fmt(tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0))}
+                  </small>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -579,35 +620,33 @@ export default function PosPage() {
       </Modal>
 
       <Modal open={showTableModal} onClose={() => setShowTableModal(false)} title="Na Stůl">
-        {tabsList.filter((t) => t.is_table).length > 0 ? (
+        {tables.length > 0 ? (
           <div>
             <h4 style={{ marginBottom: "10px" }}>Výběr stolu:</h4>
             <div
               className="grid-tiny"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
             >
-              {tabsList
-                .filter((t) => t.is_table)
-                .map((tab) => {
-                  const total = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
-                  return (
-                    <button
-                      key={tab.id}
-                      className={`btn ${total > 0 ? "btn-danger" : "btn-success"}`}
-                      onClick={() => handleSelectTab(tab)}
-                      style={{
-                        height: "60px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <strong>{tab.name}</strong>
-                      {total > 0 ? <small>{czk.format(total)}</small> : <small>Volný</small>}
-                    </button>
-                  );
-                })}
+              {tables.map((tab) => {
+                const tabTotal = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
+                return (
+                  <button
+                    key={tab.id}
+                    className={`btn ${tabTotal > 0 ? "btn-danger" : "btn-success"}`}
+                    onClick={() => handleSelectTab(tab)}
+                    style={{
+                      height: "60px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <strong>{tab.name}</strong>
+                    {tabTotal > 0 ? <small>{fmt(tabTotal)}</small> : <small>Volný</small>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -623,6 +662,48 @@ export default function PosPage() {
               setShowTableModal(false);
             }}
           >
+            Zavřít
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={showStaffModal} onClose={() => setShowStaffModal(false)} title="Na Staff">
+        {staffTabs.length > 0 ? (
+          <div>
+            <h4 style={{ marginBottom: "10px" }}>Výběr staff účtu:</h4>
+            <div
+              className="grid-tiny"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
+            >
+              {staffTabs.map((tab) => {
+                const tabTotal = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
+                return (
+                  <button
+                    key={tab.id}
+                    className={`btn ${tabTotal > 0 ? "btn-danger" : "btn-success"}`}
+                    onClick={() => handleSelectTab(tab)}
+                    style={{
+                      height: "60px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <strong>{tab.name}</strong>
+                    {tabTotal > 0 ? <small>{fmt(tabTotal)}</small> : <small>Volný</small>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">
+            Zatím nejsou vytvořeny žádné staff účty. Lze je přidat v nastavení.
+          </p>
+        )}
+        <div className="modalActions" style={{ marginTop: "20px" }}>
+          <button className="btn btn-ghost" onClick={() => setShowStaffModal(false)}>
             Zavřít
           </button>
         </div>
@@ -672,7 +753,7 @@ export default function PosPage() {
                 )}
               </div>
               <div style={{ textAlign: "center" }}>
-                <h3 style={{ margin: "0 0 10px 0" }}>K úhradě: {czk.format(total)}</h3>
+                <h3 style={{ margin: "0 0 10px 0" }}>K úhradě: {fmt(total)}</h3>
                 <p style={{ margin: 0, color: "#666" }}>Oskenujte QR kód v bankovní aplikaci.</p>
               </div>
             </>

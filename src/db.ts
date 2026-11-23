@@ -107,6 +107,7 @@ export function initDb(targetDb?: Database.Database) {
       issued_to TEXT,
       items TEXT NOT NULL, -- JSON blob of the receipt items at time of purchase
       payment_method TEXT,
+      is_staff INTEGER DEFAULT 0,
       eet_fik TEXT,
       eet_bkp TEXT,
       eet_pkp TEXT
@@ -162,6 +163,12 @@ export function initDb(targetDb?: Database.Database) {
     -- Ensure singleton row in general table exists
     INSERT OR IGNORE INTO general (id) VALUES (1);
   `);
+
+  const receiptCols = database.prepare("PRAGMA table_info(receipts)").all() as { name: string }[];
+  if (!receiptCols.some((c) => c.name === "is_staff")) {
+    database.exec("ALTER TABLE receipts ADD COLUMN is_staff INTEGER DEFAULT 0");
+  }
+
   return database;
 }
 

@@ -2,13 +2,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db";
 
-// GET - Načíst všechny účtenky
-export async function GET() {
+// GET - Načíst všechny účtenky (nebo odhad dalšího ID přes ?nextId=1)
+export async function GET(req: NextRequest) {
   try {
+    const nextIdParam = new URL(req.url).searchParams.get("nextId");
+    if (nextIdParam === "1") {
+      const row = db
+        .prepare("SELECT IFNULL(MAX(id), 0) + 1 AS nextId FROM receipts")
+        .get() as { nextId: number };
+      return NextResponse.json({ nextId: row.nextId });
+    }
+
     const receipts = db.prepare("SELECT * FROM receipts ORDER BY created_at DESC").all();
 
     // SQLite vrací JSON jako string, musíme ho parsovat pro frontend
-    // Také převedeme is_staff (0/1) na boolean, aby se s tím v Reactu lépe pracovalo
     const parsed = receipts.map((r: any) => ({
       ...r,
       items: JSON.parse(r.items || "[]"),
@@ -24,11 +31,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { receipt, issued_to, payment_method, eet_fik, eet_bkp, eet_pkp } = body;
+    const { receipt, issued_to, payment_method, is_staff, eet_fik, eet_bkp, eet_pkp } = body;
 
     const stmt = db.prepare(`
-        INSERT INTO receipts (created_at, issued_to, items, payment_method, eet_fik, eet_bkp, eet_pkp)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO receipts (created_at, issued_to, items, payment_method, is_staff, eet_fik, eet_bkp, eet_pkp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     // Ukládáme items jako JSON string
@@ -37,6 +44,7 @@ export async function POST(req: NextRequest) {
       issued_to || null,
       JSON.stringify(receipt || []),
       payment_method || null,
+      is_staff ? 1 : 0,
       eet_fik || null,
       eet_bkp || null,
       eet_pkp || null,

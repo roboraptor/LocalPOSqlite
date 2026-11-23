@@ -3,12 +3,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
-import { ParsedReceipt, ParsedTab } from "@/types/db";
-import { czk, isWithinDateRange, toTimestamp } from "@/lib/format";
+import { GeneralSettings, ParsedReceipt, ParsedTab } from "@/types/db";
+import { formatCurrency, isWithinDateRange, toTimestamp } from "@/lib/format";
 
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
   const [tabs, setTabs] = useState<ParsedTab[]>([]);
+  const [general, setGeneral] = useState<Partial<GeneralSettings>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,18 +26,21 @@ export default function ReceiptsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [receiptsRes, tabsRes] = await Promise.all([
+      const [receiptsRes, tabsRes, generalRes] = await Promise.all([
         fetch("/api/receipts", { cache: "no-store" }),
         fetch("/api/tabs", { cache: "no-store" }),
+        fetch("/api/general", { cache: "no-store" }),
       ]);
       if (!receiptsRes.ok) throw new Error("Nepodařilo se načíst účtenky");
       if (!tabsRes.ok) throw new Error("Nepodařilo se načíst otevřené účty");
 
       const receiptsData = await receiptsRes.json();
       const tabsData = await tabsRes.json();
+      const generalData = generalRes.ok ? await generalRes.json() : {};
 
       setReceipts(Array.isArray(receiptsData) ? receiptsData : []);
       setTabs(Array.isArray(tabsData) ? tabsData : []);
+      setGeneral(generalData && !generalData.error ? generalData : {});
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -112,6 +116,7 @@ export default function ReceiptsPage() {
             items: r.items,
             isTab: false,
             is_table: false,
+            is_staff: Boolean(r.is_staff),
           }))
         : tabs.map((t) => ({
             id: t.id,
@@ -120,6 +125,7 @@ export default function ReceiptsPage() {
             items: t.items,
             isTab: true,
             is_table: t.is_table === 1 || (t.is_table as any) === true,
+            is_staff: t.is_staff === 1 || (t.is_staff as any) === true,
           }));
 
     return [...dataset]
@@ -168,8 +174,30 @@ export default function ReceiptsPage() {
     <div className="container">
       {/* Print-only header */}
       <div className="print-only" style={{ textAlign: "center", marginBottom: "20px" }}>
-        <h2 style={{ fontSize: 16, margin: "0 0 5px 0", fontWeight: "bold" }}>LocalPOSqlite</h2>
-        <div style={{ fontSize: 13, fontWeight: "bold" }}>
+        <h2 style={{ fontSize: 16, margin: "0 0 5px 0", fontWeight: "bold" }}>
+          {general.organization_name || "Local POS"}
+        </h2>
+        {general.organization_address && (
+          <div style={{ fontSize: 10, whiteSpace: "pre-line" }}>{general.organization_address}</div>
+        )}
+        {(general.organization_id || general.organization_vat_id) && (
+          <div style={{ fontSize: 10 }}>
+            {general.organization_id ? `IČO: ${general.organization_id}` : ""}
+            {general.organization_id && general.organization_vat_id ? " • " : ""}
+            {general.organization_vat_id ? `DIČ: ${general.organization_vat_id}` : ""}
+          </div>
+        )}
+        {general.receipt_title && (
+          <div style={{ fontSize: 11, fontWeight: "bold", marginTop: 4 }}>
+            {general.receipt_title}
+          </div>
+        )}
+        {Boolean(general.receipt_header_enabled) && general.receipt_header && (
+          <div style={{ fontSize: 10, whiteSpace: "pre-line", marginTop: 4 }}>
+            {general.receipt_header}
+          </div>
+        )}
+        <div style={{ fontSize: 13, fontWeight: "bold", marginTop: 6 }}>
           {viewMode === "receipts" ? "SEZNAM UZAVŘENÝCH ÚČTENEK" : "SEZNAM OTEVŘENÝCH ÚČTŮ"}
         </div>
         <div style={{ fontSize: 10, color: "#555" }}>
@@ -319,10 +347,17 @@ export default function ReceiptsPage() {
                       {r.isTab ? (
                         <span className="d-flex align-items-center gap-2">
                           <Fa.FaFolderOpen />
-                          {r.is_table ? `Stůl: ${r.issued_to}` : `Účet: ${r.issued_to}`}
+                          {r.is_table
+                            ? `Stůl: ${r.issued_to}`
+                            : r.is_staff
+                              ? `Staff: ${r.issued_to}`
+                              : `Účet: ${r.issued_to}`}
                         </span>
                       ) : (
-                        `Účtenka #${r.id}`
+                        <>
+                          {`Účtenka #${r.id}`}
+                          {r.is_staff && <span className="badge badge-staff">Staff</span>}
+                        </>
                       )}
                     </div>
                     <div className="receiptSub">
@@ -339,7 +374,7 @@ export default function ReceiptsPage() {
                   {(r.items || []).map((item, i) => (
                     <div key={i} className="receiptRow">
                       <span className="itemName">{item.name}</span>
-                      <span className="itemPrice">{czk.format(item.price || 0)}</span>
+                      <span className="itemPrice">{formatCurrency(item.price || 0, general.currency)}</span>
                     </div>
                   ))}
                 </div>
@@ -347,7 +382,7 @@ export default function ReceiptsPage() {
                 <footer className="receiptTotal">
                   <span>{r.isTab ? "Celkem k zaplacení" : "Celkem"}</span>
                   <span className="totalPrice" style={{ color: r.isTab ? "var(--info)" : "inherit" }}>
-                    {czk.format(total)}
+                    {formatCurrency(total, general.currency)}
                   </span>
                 </footer>
               </section>
@@ -379,6 +414,15 @@ export default function ReceiptsPage() {
               <Fa.FaTrashCan /> Smazat Vše
             </button>
           </div>
+        </div>
+      )}
+
+      {Boolean(general.receipt_footer_enabled) && general.receipt_footer && (
+        <div
+          className="print-only"
+          style={{ textAlign: "center", fontSize: 10, whiteSpace: "pre-line", marginTop: 12 }}
+        >
+          {general.receipt_footer}
         </div>
       )}
 

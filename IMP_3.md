@@ -45,6 +45,11 @@ Položky z auditu, které záměrně neřešíme v prvním čistém refaktoru, p
 
 - [x] **1. Dynamické kategorie v `/items`**: nahradit hardcodovaný `CATEGORIES = ["Nápoje", "Jídlo", "Ostatní"]` v `src/app/items/page.tsx` daty z `/api/categories`.
 - [x] **2. Sjednocení timestampů v tabulce `tabs`**: sjednotit ISO 8601 z `src/app/api/tabs/route.ts` a SQLite `datetime('now')` v triggerech `trg_tabs_timestamp` / `trg_tabs_cleanup` v `src/db.ts`.
-- [ ] **3. Napojení ignorovaných polí z `general` a odstranění pozůstatků `is_staff`**: napojit `currency`, `tax_enabled`, `tax_rate`, `receipt_title`, `receipt_header`, `receipt_footer`, `trx_vs_enabled`, `eet_enable` (nebo odstranit nepoužívané) a vyřešit `is_staff` v `export/page.tsx` a `tabs`.
+- [x] **3. Napojení ignorovaných polí z `general` a `is_staff`** (části A, B-1, B-2, B-3 hotové; C odloženo do V4):
+  - [x] **3A — Permanentní Staff účty + podmíněná tlačítka**: přidán typ `Permanentní účet – Staff` (`is_permanent=1, is_staff=1`) v `TablesSettings.tsx`, žluté tlačítko `Na staff` a modal na pokladně (`src/app/page.tsx`), skrytí `Na stůl` / `Na staff` pokud nejsou vytvořené, uložení `receipts.is_staff` včetně migrace existujících DB (`src/db.ts`).
+  - [x] **3B-1 — Hlavička a patička tisku**: napojení `organization_name`, adresy, IČO/DIČ, `receipt_title`, `receipt_header` a `receipt_footer` v tiskových pohledech `closing/page.tsx` a `receipts/page.tsx`.
+  - [x] **3B-2 — Dynamická měna**: napojení `general.currency` přes `formatCurrency` a v SPAYD/Paylibo (`page.tsx`, `cd/page.tsx`, `closing/page.tsx`, `receipts/page.tsx`, `items/page.tsx`, `TablesSettings.tsx`, `PaymentSettings.tsx`).
+  - [x] **3B-3 — Variabilní symbol (`trx_vs_enabled`)**: napojen odhad dalšího ID účtenky (`MAX(id) + 1`) přes `/api/receipts?nextId=1` při otevření QR modalu v `src/app/page.tsx`.
+  - [ ] **3C — DPH (`tax_enabled`, `tax_rate`) a EET (`eet_enable`)**: odloženo do `V4`.
 - [x] **4. Odtrackování databázových souborů z gitu**: odebrat verzované soubory `data my/pos.db*` a `data my/pos2.db` z gitu a doplnit `.gitignore`; opravit odkazy na neexistující `scripts/migrate.js` v `README.md` a `/data/example_items.json` v `.gitignore`.
 - [x] **5. Úprava zastaralých textů**: opravit hlášku o nutnosti restartu po změně cesty DB (`DBSettings.tsx`, `api/settings/db/route.ts`) a výchozí název `"EffortUp"` v `src/app/cd/page.tsx`.

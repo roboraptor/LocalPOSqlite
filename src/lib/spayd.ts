@@ -56,18 +56,31 @@ export function generateSpaydString(options: SpaydOptions): string {
 
 /**
  * Sestaví URL pro externí generátor Paylibo (obrázek nebo SPAYD řetězec).
+ * Pro české IBANy používá /czech/ endpoint, který podporuje vs, ks a ss.
  */
 export function buildPayliboUrl(
   kind: "image" | "string",
   options: SpaydOptions & { size?: number; branding?: boolean },
 ): string | null {
-  const { iban, amount, currency, vs, ks, msg, size, branding } = options;
+  const { iban, amount, currency, vs, ks, ss, msg, size, branding } = options;
   if (!iban) return null;
 
   const cleanIban = iban.replace(/\s+/g, "").toUpperCase();
   if (cleanIban.length < 15) return null;
 
-  const params = new URLSearchParams({ iban: cleanIban });
+  const isCzechIban = /^CZ\d{22}$/.test(cleanIban);
+  const params = new URLSearchParams();
+
+  if (isCzechIban) {
+    const bankCode = cleanIban.slice(4, 8);
+    const accountPrefix = cleanIban.slice(8, 14).replace(/^0+/, "");
+    const accountNumber = cleanIban.slice(14, 24).replace(/^0+/, "");
+    if (accountPrefix) params.append("accountPrefix", accountPrefix);
+    params.append("accountNumber", accountNumber);
+    params.append("bankCode", bankCode);
+  } else {
+    params.append("iban", cleanIban);
+  }
 
   if (amount !== undefined && amount !== "") {
     params.append("amount", Number(amount).toFixed(2));
@@ -75,6 +88,7 @@ export function buildPayliboUrl(
   if (currency) params.append("currency", currency.toUpperCase());
   if (vs) params.append("vs", String(vs).slice(0, 10));
   if (ks) params.append("ks", String(ks).slice(0, 4));
+  if (ss) params.append("ss", String(ss).slice(0, 10));
   if (msg) params.append("message", msg.substring(0, 60));
 
   if (kind === "image") {
@@ -82,5 +96,6 @@ export function buildPayliboUrl(
     if (branding !== undefined) params.append("branding", String(branding));
   }
 
-  return `http://api.paylibo.com/paylibo/generator/${kind}?${params.toString()}`;
+  const route = isCzechIban ? `czech/${kind}` : kind;
+  return `http://api.paylibo.com/paylibo/generator/${route}?${params.toString()}`;
 }

@@ -69,6 +69,7 @@ export default function PaymentSettings() {
       trx_vs_enabled: false,
       trx_ks: "",
       use_external_qr_api: false,
+      currency: "CZK",
     },
     (data) => ({
       bank_iban: data.bank_iban || "",
@@ -76,6 +77,7 @@ export default function PaymentSettings() {
       trx_vs_enabled: parseBool(data.trx_vs_enabled),
       trx_ks: data.trx_ks || "",
       use_external_qr_api: parseBool(data.use_external_qr_api),
+      currency: data.currency || "CZK",
     }),
     {
       onLoaded: (mapped) => {
@@ -105,7 +107,7 @@ export default function PaymentSettings() {
     () => ({
       iban: formData.bank_iban,
       amount: Number(testAmount) || 0,
-      currency: "CZK",
+      currency: formData.currency || "CZK",
       vs: formData.trx_vs_enabled ? "1234567890" : "",
       ks: formData.trx_ks,
       msg: formData.trx_msg,
@@ -115,11 +117,11 @@ export default function PaymentSettings() {
 
   const previewSpayd = useMemo(() => generateSpaydString(previewOptions), [previewOptions]);
   const previewPayliboImageUrl = useMemo(
-    () => buildPayliboUrl("image", { ...previewOptions, ks: undefined, size: 128, branding: true }),
+    () => buildPayliboUrl("image", { ...previewOptions, size: 128, branding: true }),
     [previewOptions],
   );
   const previewPayliboStringUrl = useMemo(
-    () => buildPayliboUrl("string", { ...previewOptions, ks: undefined }),
+    () => buildPayliboUrl("string", previewOptions),
     [previewOptions],
   );
 

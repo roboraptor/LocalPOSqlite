@@ -6,18 +6,20 @@ import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
 import { Item, Category } from "@/types/db";
-import { czk } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
 
 // Nová komponenta pro kartu položky pro lepší přehlednost
 function ItemCard({
   item,
+  currency,
   onDragStart,
   onDrop,
   onEdit,
   onDelete,
 }: {
   item: Item;
+  currency: string;
   onDragStart: (e: DragEvent, id: number) => void;
   onDrop: (e: DragEvent, id: number) => void;
   onEdit: (item: Item) => void;
@@ -46,7 +48,7 @@ function ItemCard({
           <span>#{item.position}</span>
           <span>{item.name}</span>
         </div>
-        <div className="totalPrice">{czk.format(item.price || 0)}</div>
+        <div className="totalPrice">{formatCurrency(item.price || 0, currency)}</div>
       </header>
       <div className="muted">
         Kategorie: <strong>{item.category || "Ostatní"}</strong>
@@ -82,6 +84,7 @@ function ItemCard({
 export default function ItemsAdmin() {
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [currency, setCurrency] = useState("CZK");
   const [favoriteIcons, setFavoriteIcons] = useState<string[]>(FAVORITE_ICONS);
   const [loading, setLoading] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -117,10 +120,11 @@ export default function ItemsAdmin() {
     setLoading(true);
     setErr(null);
     try {
-      const [itemsRes, iconsRes, catsRes] = await Promise.all([
+      const [itemsRes, iconsRes, catsRes, generalRes] = await Promise.all([
         fetch("/api/items", { cache: "no-store" }),
         fetch("/api/icons", { cache: "no-store" }), // Načteme dynamické ikony z API
         fetch("/api/categories", { cache: "no-store" }),
+        fetch("/api/general", { cache: "no-store" }),
       ]);
 
       if (!itemsRes.ok) throw new Error("Nepodařilo se načíst položky.");
@@ -129,6 +133,11 @@ export default function ItemsAdmin() {
       if (iconsRes.ok) {
         const iconsData = await iconsRes.json();
         if (Array.isArray(iconsData)) setFavoriteIcons(iconsData);
+      }
+
+      if (generalRes.ok) {
+        const generalData = await generalRes.json();
+        if (generalData?.currency) setCurrency(generalData.currency);
       }
 
       if (catsRes.ok) {
@@ -364,7 +373,7 @@ export default function ItemsAdmin() {
                   </div>
                   <div>
                     <label className="form-label" htmlFor="price">
-                      Cena (Kč)
+                      Cena ({currency})
                     </label>
                     <input
                       id="price"
@@ -498,6 +507,7 @@ export default function ItemsAdmin() {
                         <ItemCard
                           key={item.id}
                           item={item}
+                          currency={currency}
                           onDragStart={onDragStart}
                           onDrop={onDrop}
                           onEdit={edit}

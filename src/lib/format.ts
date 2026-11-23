@@ -3,6 +3,25 @@ export const czk = new Intl.NumberFormat("cs-CZ", {
   currency: "CZK",
 });
 
+const currencyFormatters = new Map<string, Intl.NumberFormat>([["CZK", czk]]);
+
+export function formatCurrency(amount: number, currency?: string | null): string {
+  const code = (currency || "CZK").trim().toUpperCase() || "CZK";
+  let formatter = currencyFormatters.get(code);
+  if (!formatter) {
+    try {
+      formatter = new Intl.NumberFormat("cs-CZ", {
+        style: "currency",
+        currency: code,
+      });
+      currencyFormatters.set(code, formatter);
+    } catch {
+      formatter = czk;
+    }
+  }
+  return formatter.format(amount);
+}
+
 export function toTimestamp(dateStr: string): number {
   if (!dateStr) return 0;
   const t = new Date(dateStr).getTime();

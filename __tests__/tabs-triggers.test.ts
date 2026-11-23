@@ -73,4 +73,26 @@ describe("tabs timestamp & cleanup triggers", () => {
 
     expect(remaining).toEqual(["Permanent Expired", "Table Expired", "Fresh Tab"]);
   });
+
+  it("migrates legacy receipts table by adding is_staff column if missing", () => {
+    const legacyDb = new Database(":memory:");
+    legacyDb.exec(`
+      CREATE TABLE receipts (
+        id INTEGER PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        issued_to TEXT,
+        items TEXT NOT NULL,
+        payment_method TEXT,
+        eet_fik TEXT,
+        eet_bkp TEXT,
+        eet_pkp TEXT
+      );
+    `);
+
+    initDb(legacyDb);
+
+    const cols = legacyDb.prepare("PRAGMA table_info(receipts)").all() as { name: string }[];
+    expect(cols.some((c) => c.name === "is_staff")).toBe(true);
+    legacyDb.close();
+  });
 });

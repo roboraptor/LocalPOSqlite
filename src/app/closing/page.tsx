@@ -3,12 +3,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
-import { Item, ParsedReceipt, ParsedTab } from "@/types/db";
-import { czk, isWithinDateRange } from "@/lib/format";
+import { GeneralSettings, Item, ParsedReceipt, ParsedTab } from "@/types/db";
+import { formatCurrency, isWithinDateRange } from "@/lib/format";
 
 export default function ClosingPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
   const [tabs, setTabs] = useState<ParsedTab[]>([]);
+  const [general, setGeneral] = useState<Partial<GeneralSettings>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,9 +26,10 @@ export default function ClosingPage() {
       try {
         setLoading(true);
         setError(null);
-        const [receiptsRes, tabsRes] = await Promise.all([
+        const [receiptsRes, tabsRes, generalRes] = await Promise.all([
           fetch("/api/receipts", { cache: "no-store" }),
           fetch("/api/tabs", { cache: "no-store" }),
+          fetch("/api/general", { cache: "no-store" }),
         ]);
 
         if (!receiptsRes.ok) throw new Error("Nepodařilo se načíst účtenky");
@@ -35,9 +37,11 @@ export default function ClosingPage() {
 
         const receiptsData = await receiptsRes.json();
         const tabsData = await tabsRes.json();
+        const generalData = generalRes.ok ? await generalRes.json() : {};
 
         setReceipts(Array.isArray(receiptsData) ? receiptsData : []);
         setTabs(Array.isArray(tabsData) ? tabsData : []);
+        setGeneral(generalData && !generalData.error ? generalData : {});
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -246,6 +250,8 @@ export default function ClosingPage() {
     window.print();
   };
 
+  const fmt = (amount: number) => formatCurrency(amount, general.currency);
+
   if (loading) {
     return (
       <div className="container">
@@ -411,7 +417,7 @@ export default function ClosingPage() {
                 {viewMode === "open" ? "OČEKÁVANÁ TRŽBA" : "CELKOVÁ TRŽBA"}
               </div>
               <h2 className="mb-0 fw-extrabold text-success" style={{ fontFeatureSettings: "'tnum'" }}>
-                {czk.format(stats.totalRevenue)}
+                {fmt(stats.totalRevenue)}
               </h2>
             </div>
             <Fa.FaCoins size={36} className="text-success opacity-75" />
@@ -431,7 +437,7 @@ export default function ClosingPage() {
             <div>
               <div className="text-mute fw-bold mb-1">PRŮMĚRNÁ ÚTRATA</div>
               <h2 className="mb-0 fw-extrabold text-warning">
-                {czk.format(stats.avgTicket)}
+                {fmt(stats.avgTicket)}
               </h2>
             </div>
             <Fa.FaScaleBalanced size={36} className="text-warning opacity-75" />
@@ -455,7 +461,7 @@ export default function ClosingPage() {
                     <span className="d-flex align-items-center gap-2">
                       <Fa.FaMoneyBill1Wave className="text-success" /> Hotovost ({stats.payments.cash.count}x)
                     </span>
-                    <span className="fw-bold text-success">{czk.format(stats.payments.cash.amount)} ({getPercent(stats.payments.cash.amount)}%)</span>
+                    <span className="fw-bold text-success">{fmt(stats.payments.cash.amount)} ({getPercent(stats.payments.cash.amount)}%)</span>
                   </div>
                   <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                     <div
@@ -473,7 +479,7 @@ export default function ClosingPage() {
                     <span className="d-flex align-items-center gap-2">
                       <Fa.FaCreditCard className="text-primary" /> Karta ({stats.payments.card.count}x)
                     </span>
-                    <span className="fw-bold text-primary">{czk.format(stats.payments.card.amount)} ({getPercent(stats.payments.card.amount)}%)</span>
+                    <span className="fw-bold text-primary">{fmt(stats.payments.card.amount)} ({getPercent(stats.payments.card.amount)}%)</span>
                   </div>
                   <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                     <div
@@ -491,7 +497,7 @@ export default function ClosingPage() {
                     <span className="d-flex align-items-center gap-2">
                       <Fa.FaQrcode className="text-warning" /> QR Platba ({stats.payments.qr.count}x)
                     </span>
-                    <span className="fw-bold text-warning">{czk.format(stats.payments.qr.amount)} ({getPercent(stats.payments.qr.amount)}%)</span>
+                    <span className="fw-bold text-warning">{fmt(stats.payments.qr.amount)} ({getPercent(stats.payments.qr.amount)}%)</span>
                   </div>
                   <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                     <div
@@ -509,7 +515,7 @@ export default function ClosingPage() {
                     <span className="d-flex align-items-center gap-2">
                       <Fa.FaEllipsis className="text-white" /> Ostatní / Neuvedeno ({stats.payments.other.count}x)
                     </span>
-                    <span className="fw-bold text-secondary">{czk.format(stats.payments.other.amount)} ({getPercent(stats.payments.other.amount)}%)</span>
+                    <span className="fw-bold text-secondary">{fmt(stats.payments.other.amount)} ({getPercent(stats.payments.other.amount)}%)</span>
                   </div>
                   <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                     <div
@@ -527,7 +533,7 @@ export default function ClosingPage() {
                     <span className="d-flex align-items-center gap-2">
                       <Fa.FaFolderOpen className="text-info" /> Otevřené účty ({stats.payments.open.count}x)
                     </span>
-                    <span className="fw-bold text-info">{czk.format(stats.payments.open.amount)} ({getPercent(stats.payments.open.amount)}%)</span>
+                    <span className="fw-bold text-info">{fmt(stats.payments.open.amount)} ({getPercent(stats.payments.open.amount)}%)</span>
                   </div>
                   <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                     <div
@@ -551,7 +557,7 @@ export default function ClosingPage() {
                   <div key={cat.name} className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <span>{cat.name} ({cat.quantity} ks)</span>
-                      <span className="fw-bold">{czk.format(cat.revenue)} ({getPercent(cat.revenue)}%)</span>
+                      <span className="fw-bold">{fmt(cat.revenue)} ({getPercent(cat.revenue)}%)</span>
                     </div>
                     <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
                       <div
@@ -594,7 +600,7 @@ export default function ClosingPage() {
                           </span>
                         </td>
                         <td className="text-end fw-bold">{p.quantity} ks</td>
-                        <td className="text-end">{czk.format(p.revenue)}</td>
+                        <td className="text-end">{fmt(p.revenue)}</td>
                         <td className="text-end text-mute" style={{ fontSize: "0.9em" }}>
                           {getPercent(p.revenue)}%
                         </td>
@@ -611,8 +617,30 @@ export default function ClosingPage() {
       {/* Print-only layout (Thermal POS style) */}
       <div className="print-only">
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, margin: "0 0 5px 0", fontWeight: "bold" }}>LocalPOSqlite</h2>
-          <div style={{ fontSize: 14, fontWeight: "bold" }}>UZÁVĚRKA PRODEJŮ</div>
+          <h2 style={{ fontSize: 18, margin: "0 0 5px 0", fontWeight: "bold" }}>
+            {general.organization_name || "Local POS"}
+          </h2>
+          {general.organization_address && (
+            <div style={{ fontSize: 11, whiteSpace: "pre-line" }}>{general.organization_address}</div>
+          )}
+          {(general.organization_id || general.organization_vat_id) && (
+            <div style={{ fontSize: 11 }}>
+              {general.organization_id ? `IČO: ${general.organization_id}` : ""}
+              {general.organization_id && general.organization_vat_id ? " • " : ""}
+              {general.organization_vat_id ? `DIČ: ${general.organization_vat_id}` : ""}
+            </div>
+          )}
+          {general.receipt_title && (
+            <div style={{ fontSize: 12, fontWeight: "bold", marginTop: 4 }}>
+              {general.receipt_title}
+            </div>
+          )}
+          {Boolean(general.receipt_header_enabled) && general.receipt_header && (
+            <div style={{ fontSize: 11, whiteSpace: "pre-line", marginTop: 4 }}>
+              {general.receipt_header}
+            </div>
+          )}
+          <div style={{ fontSize: 14, fontWeight: "bold", marginTop: 6 }}>UZÁVĚRKA PRODEJŮ</div>
           <div style={{ fontSize: 11, color: "#555" }}>
             Vytvořeno: {new Date().toLocaleString("cs-CZ")}
           </div>
@@ -631,18 +659,18 @@ export default function ClosingPage() {
           <span>
             {viewMode === "open" ? "OČEKÁVANÝ OBRAT:" : "CELKOVÝ OBRAT:"}
           </span>
-          <span>{czk.format(stats.totalRevenue)}</span>
+          <span>{fmt(stats.totalRevenue)}</span>
         </div>
 
         {viewMode === "all" && (
           <>
             <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between", marginBottom: 3, paddingLeft: 10 }}>
               <span>- Zaplaceno (Paid):</span>
-              <span>{czk.format(stats.soldRevenue)}</span>
+              <span>{fmt(stats.soldRevenue)}</span>
             </div>
             <div style={{ fontSize: 11, display: "flex", justifyContent: "space-between", marginBottom: 5, paddingLeft: 10 }}>
               <span>- Otevřeno (Unpaid):</span>
-              <span>{czk.format(stats.openRevenue)}</span>
+              <span>{fmt(stats.openRevenue)}</span>
             </div>
           </>
         )}
@@ -650,7 +678,7 @@ export default function ClosingPage() {
         <div style={{ borderBottom: "1px dashed black", paddingBottom: 5, marginBottom: 5 }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>Průměrný doklad:</span>
-            <span>{czk.format(stats.avgTicket)}</span>
+            <span>{fmt(stats.avgTicket)}</span>
           </div>
         </div>
 
@@ -664,32 +692,32 @@ export default function ClosingPage() {
                   {stats.payments.cash.amount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Hotovost ({stats.payments.cash.count}x):</span>
-                      <span>{czk.format(stats.payments.cash.amount)}</span>
+                      <span>{fmt(stats.payments.cash.amount)}</span>
                     </div>
                   )}
                   {stats.payments.card.amount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Karta ({stats.payments.card.count}x):</span>
-                      <span>{czk.format(stats.payments.card.amount)}</span>
+                      <span>{fmt(stats.payments.card.amount)}</span>
                     </div>
                   )}
                   {stats.payments.qr.amount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>QR platba ({stats.payments.qr.count}x):</span>
-                      <span>{czk.format(stats.payments.qr.amount)}</span>
+                      <span>{fmt(stats.payments.qr.amount)}</span>
                     </div>
                   )}
                   {stats.payments.other.amount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Ostatní ({stats.payments.other.count}x):</span>
-                      <span>{czk.format(stats.payments.other.amount)}</span>
+                      <span>{fmt(stats.payments.other.amount)}</span>
                     </div>
                   )}
                 </>
               ) : (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Otevřené účty ({stats.payments.open.count}x):</span>
-                  <span>{czk.format(stats.payments.open.amount)}</span>
+                  <span>{fmt(stats.payments.open.amount)}</span>
                 </div>
               )}
             </div>
@@ -707,7 +735,7 @@ export default function ClosingPage() {
                       {p.name} ({p.category})
                     </span>
                     <span>
-                      {p.quantity} ks / {czk.format(p.revenue)}
+                      {p.quantity} ks / {fmt(p.revenue)}
                     </span>
                   </div>
                 ))
@@ -725,25 +753,25 @@ export default function ClosingPage() {
               {stats.payments.cash.amount > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>  Hotovost ({stats.payments.cash.count}x):</span>
-                  <span>{czk.format(stats.payments.cash.amount)}</span>
+                  <span>{fmt(stats.payments.cash.amount)}</span>
                 </div>
               )}
               {stats.payments.card.amount > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>  Karta ({stats.payments.card.count}x):</span>
-                  <span>{czk.format(stats.payments.card.amount)}</span>
+                  <span>{fmt(stats.payments.card.amount)}</span>
                 </div>
               )}
               {stats.payments.qr.amount > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>  QR platba ({stats.payments.qr.count}x):</span>
-                  <span>{czk.format(stats.payments.qr.amount)}</span>
+                  <span>{fmt(stats.payments.qr.amount)}</span>
                 </div>
               )}
               {stats.payments.other.amount > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>  Ostatní ({stats.payments.other.count}x):</span>
-                  <span>{czk.format(stats.payments.other.amount)}</span>
+                  <span>{fmt(stats.payments.other.amount)}</span>
                 </div>
               )}
             </div>
@@ -759,7 +787,7 @@ export default function ClosingPage() {
                       {p.name} ({p.category})
                     </span>
                     <span>
-                      {p.quantity} ks / {czk.format(p.revenue)}
+                      {p.quantity} ks / {fmt(p.revenue)}
                     </span>
                   </div>
                 ))
@@ -773,7 +801,7 @@ export default function ClosingPage() {
               <div style={{ fontWeight: "bold", textDecoration: "underline", marginBottom: 3 }}>NEZAPLACENO / OTEVŘENO</div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>  Otevřené účty ({stats.payments.open.count}x):</span>
-                <span>{czk.format(stats.payments.open.amount)}</span>
+                <span>{fmt(stats.payments.open.amount)}</span>
               </div>
             </div>
 
@@ -788,7 +816,7 @@ export default function ClosingPage() {
                       {p.name} ({p.category})
                     </span>
                     <span>
-                      {p.quantity} ks / {czk.format(p.revenue)}
+                      {p.quantity} ks / {fmt(p.revenue)}
                     </span>
                   </div>
                 ))
@@ -798,6 +826,12 @@ export default function ClosingPage() {
         )}
 
         <div style={{ borderBottom: "1px dashed black", marginTop: 5, marginBottom: 5 }} />
+
+        {Boolean(general.receipt_footer_enabled) && general.receipt_footer && (
+          <div style={{ textAlign: "center", fontSize: 11, whiteSpace: "pre-line", marginTop: 10 }}>
+            {general.receipt_footer}
+          </div>
+        )}
 
         <div style={{ textAlign: "center", fontSize: 10, marginTop: 15 }}>
           * Konec uzávěrky *

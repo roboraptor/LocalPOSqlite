@@ -48,32 +48,47 @@ describe("buildPayliboUrl", () => {
     expect(buildPayliboUrl("image", { iban: "CZ1234" })).toBeNull();
   });
 
-  it("builds image URL with normalized IBAN, formatted amount, size and branding", () => {
+  it("builds Czech /czech/image URL with decoded prefix/account/bankCode, ks, vs, size and branding", () => {
     const url = buildPayliboUrl("image", {
       iban: "cz65 0800 0000 1920 0014 5399",
       amount: 150,
       currency: "czk",
+      vs: "1234567890",
       ks: "0308",
       msg: "Platba",
       size: 256,
       branding: true,
     });
     expect(url).toBe(
-      "http://api.paylibo.com/paylibo/generator/image?iban=CZ6508000000192000145399&amount=150.00&currency=CZK&ks=0308&message=Platba&size=256&branding=true",
+      "http://api.paylibo.com/paylibo/generator/czech/image?accountPrefix=19&accountNumber=2000145399&bankCode=0800&amount=150.00&currency=CZK&vs=1234567890&ks=0308&message=Platba&size=256&branding=true",
     );
   });
 
-  it("builds string URL without image-only params", () => {
+  it("builds Czech /czech/string URL without image-only params or empty prefix", () => {
     const url = buildPayliboUrl("string", {
-      iban: "CZ6508000000192000145399",
+      iban: "CZ6508000000002000145399",
       amount: 250,
       currency: "CZK",
       vs: "1234567890",
+      ks: "0308",
       size: 128,
       branding: true,
     });
     expect(url).toBe(
-      "http://api.paylibo.com/paylibo/generator/string?iban=CZ6508000000192000145399&amount=250.00&currency=CZK&vs=1234567890",
+      "http://api.paylibo.com/paylibo/generator/czech/string?accountNumber=2000145399&bankCode=0800&amount=250.00&currency=CZK&vs=1234567890&ks=0308",
+    );
+  });
+
+  it("uses generic iban endpoint for non-Czech IBANs", () => {
+    const url = buildPayliboUrl("image", {
+      iban: "SK3112000000198742637541",
+      amount: 100,
+      currency: "EUR",
+      size: 128,
+      branding: true,
+    });
+    expect(url).toBe(
+      "http://api.paylibo.com/paylibo/generator/image?iban=SK3112000000198742637541&amount=100.00&currency=EUR&size=128&branding=true",
     );
   });
 });

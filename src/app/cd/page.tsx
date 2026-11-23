@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import { QRCodeSVG } from "qrcode.react";
-import { czk } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import type { CustomerState } from "@/lib/customerState";
 
 export default function CustomerDisplayPage() {
@@ -18,6 +18,7 @@ export default function CustomerDisplayPage() {
   });
 
   const [shopName, setShopName] = useState<string>("Local POS");
+  const [currency, setCurrency] = useState<string>("CZK");
   const [floatingIcons, setFloatingIcons] = useState<any[]>([]);
   const [favoriteIconNames, setFavoriteIconNames] = useState<string[]>([]);
   const [particles, setParticles] = useState<any[]>([]);
@@ -121,6 +122,9 @@ export default function CustomerDisplayPage() {
           const data = await res.json();
           if (data.organization_name) {
             setShopName(data.organization_name);
+          }
+          if (data.currency) {
+            setCurrency(data.currency);
           }
         }
       } catch (err) {
@@ -292,21 +296,21 @@ export default function CustomerDisplayPage() {
             <h3 className="receipt__title">
               Účtenka{" "}
               {state.activeTab &&
-                `(${state.activeTab.is_table ? "Stůl" : "Účet"}: ${state.activeTab.name})`}
+                `(${state.activeTab.is_table ? "Stůl" : state.activeTab.is_staff ? "Staff" : "Účet"}: ${state.activeTab.name})`}
             </h3>
 
             <div style={{ flex: 1, overflowY: "auto" }}>
               {receipt.filter(Boolean).map((item, idx) => (
                 <div key={`${item.id || idx}-${idx}`} className="receipt__row">
                   <span className="receipt__name">{item.name || "Položka"}</span>
-                  <span className="receipt__price">{czk.format(item.price || 0)}</span>
+                  <span className="receipt__price">{formatCurrency(item.price || 0, currency)}</span>
                 </div>
               ))}
             </div>
 
             <div className="receipt__total">
               <span>Celkem</span>
-              <span>{czk.format(total)}</span>
+              <span>{formatCurrency(total, currency)}</span>
             </div>
           </div>
         </div>
@@ -324,7 +328,7 @@ export default function CustomerDisplayPage() {
                 <QRCodeSVG value={state.spaydString} size={256} />
               )}
             </div>
-            <div className="qr-amount">{czk.format(total)}</div>
+            <div className="qr-amount">{formatCurrency(total, currency)}</div>
             <p className="qr-instruction">Naskenujte QR kód ve své bankovní aplikaci.</p>
           </div>
         </div>
