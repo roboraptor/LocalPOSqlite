@@ -430,7 +430,7 @@ export default function PosPage() {
               </button>
             )}
             {activeTab && (
-              <button className="btn btn-warning btn-items--tri" onClick={() => handleSaveTab()}>
+              <button className="btn btn-primary btn-items--tri" onClick={() => handleSaveTab()}>
                 <div className="btn-items__title">Odložit</div>
                 <div className="btn-items__icon">
                   <Fa.FaFloppyDisk />
@@ -442,7 +442,7 @@ export default function PosPage() {
               onClick={() => saveReceipt("Cash")}
               disabled={receipt.length === 0}
             >
-              <div className="btn-items__title">{activeTab ? "Zaplatit účtenku" : "Zaplatit"}</div>
+              <div className="btn-items__title">{activeTab ? "Zaplatit účet" : "Zaplatit"}</div>
               <div className="btn-items__icon">
                 <Fa.FaMoneyBill />
               </div>
