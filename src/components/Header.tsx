@@ -1,12 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as Fa from "react-icons/fa6";
+
+interface BatteryStatus {
+  level: number | null;
+  temperatureC: number | null;
+  plugged: string;
+  status: string;
+}
 
 export default function Header() {
   const [expanded, setExpanded] = useState(false);
+  const [cdBattery, setCdBattery] = useState<BatteryStatus | null>(null);
+  const [refreshingCd, setRefreshingCd] = useState(false);
   const pathname = usePathname();
+
+  const refreshCdStatus = async () => {
+    setRefreshingCd(true);
+    try {
+      const res = await fetch("/api/settings/customer-display", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      });
+      if (!res.ok) {
+        setCdBattery(null);
+        return;
+      }
+      const data = await res.json();
+      setCdBattery(data?.battery || null);
+    } catch {
+      setCdBattery(null);
+    } finally {
+      setRefreshingCd(false);
+    }
+  };
+
+  useEffect(() => {
+    if (pathname !== "/cd") {
+      refreshCdStatus();
+    }
+  }, [pathname]);
 
   if (pathname === "/cd") {
     return null;
@@ -40,6 +77,34 @@ export default function Header() {
 
         <div className={`collapse navbar-collapse ${expanded ? "show" : ""}`}>
           <div className="navbar-nav ms-auto">
+            {cdBattery && (
+              <button
+                type="button"
+                className={`btn ${
+                  (cdBattery.temperatureC !== null && cdBattery.temperatureC >= 40) ||
+                  (cdBattery.level !== null && cdBattery.level <= 15)
+                    ? "btn-danger"
+                    : "btn-secondary"
+                } super-center`}
+                style={{
+                  marginLeft: 5,
+                  marginBottom: 3,
+                  height: 34,
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                }}
+                onClick={refreshCdStatus}
+                disabled={refreshingCd}
+                title={`Klientský displej (${cdBattery.status}, ${cdBattery.plugged}) — kliknutím obnovíte`}
+              >
+                <Fa.FaMobileScreen size={14} />
+                <span>
+                  {refreshingCd
+                    ? "..."
+                    : `${cdBattery.level ?? "?"}% • ${cdBattery.temperatureC !== null ? `${cdBattery.temperatureC} °C` : "? °C"}`}
+                </span>
+              </button>
+            )}
             {navLinks.map((link) => (
               <Link
                 key={link.href}
