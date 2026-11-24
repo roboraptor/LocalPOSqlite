@@ -162,11 +162,43 @@ export function initDb(targetDb?: Database.Database) {
 
     -- Ensure singleton row in general table exists
     INSERT OR IGNORE INTO general (id) VALUES (1);
+
+    -- Nastavení externího klientského displeje (USB / ADB)
+    CREATE TABLE IF NOT EXISTS customer_display_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      adb_path TEXT DEFAULT 'adb',
+      device_serial TEXT DEFAULT '',
+      port INTEGER DEFAULT 3000,
+      auto_reverse INTEGER DEFAULT 0,
+      auto_open_cd INTEGER DEFAULT 0,
+      auto_immersive INTEGER DEFAULT 0,
+      auto_stay_on INTEGER DEFAULT 0,
+      auto_brightness INTEGER DEFAULT 0,
+      idle_brightness INTEGER DEFAULT 60,
+      active_brightness INTEGER DEFAULT 100,
+      qr_brightness INTEGER DEFAULT 200,
+      tap_x INTEGER DEFAULT 400,
+      tap_y INTEGER DEFAULT 100
+    );
+    INSERT OR IGNORE INTO customer_display_settings (id) VALUES (1);
   `);
 
   const receiptCols = database.prepare("PRAGMA table_info(receipts)").all() as { name: string }[];
   if (!receiptCols.some((c) => c.name === "is_staff")) {
     database.exec("ALTER TABLE receipts ADD COLUMN is_staff INTEGER DEFAULT 0");
+  }
+
+  const cdCols = database
+    .prepare("PRAGMA table_info(customer_display_settings)")
+    .all() as { name: string }[];
+  if (!cdCols.some((c) => c.name === "qr_brightness")) {
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN qr_brightness INTEGER DEFAULT 200");
+  }
+  if (!cdCols.some((c) => c.name === "tap_x")) {
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN tap_x INTEGER DEFAULT 400");
+  }
+  if (!cdCols.some((c) => c.name === "tap_y")) {
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN tap_y INTEGER DEFAULT 100");
   }
 
   return database;

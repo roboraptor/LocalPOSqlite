@@ -8,6 +8,7 @@ export interface CustomerState {
   spaydString: string;
   externalQrUrl: string | null;
   status: "pending" | "completed";
+  fullscreenToggleId?: number;
 }
 
 const globalForCustomerState = global as unknown as {
@@ -23,6 +24,7 @@ if (!globalForCustomerState.customerState) {
     spaydString: "",
     externalQrUrl: null,
     status: "pending",
+    fullscreenToggleId: 0,
   };
 }
 

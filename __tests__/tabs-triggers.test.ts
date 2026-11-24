@@ -95,4 +95,29 @@ describe("tabs timestamp & cleanup triggers", () => {
     expect(cols.some((c) => c.name === "is_staff")).toBe(true);
     legacyDb.close();
   });
+
+  it("initializes singleton customer_display_settings row with defaults", () => {
+    const row = memDb
+      .prepare("SELECT * FROM customer_display_settings WHERE id = 1")
+      .get() as {
+      id: number;
+      adb_path: string;
+      port: number;
+      auto_reverse: number;
+      active_brightness: number;
+      qr_brightness: number;
+      tap_x: number;
+      tap_y: number;
+    };
+
+    expect(row).toBeDefined();
+    expect(row.id).toBe(1);
+    expect(row.adb_path).toBe("adb");
+    expect(row.port).toBe(3000);
+    expect(row.auto_reverse).toBe(0);
+    expect(row.active_brightness).toBe(100);
+    expect(row.qr_brightness).toBe(200);
+    expect(row.tap_x).toBe(400);
+    expect(row.tap_y).toBe(100);
+  });
 });

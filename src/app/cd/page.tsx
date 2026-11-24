@@ -1,7 +1,7 @@
 // c:\projects\LocalPOSjson\src\app\cd\page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as Fa from "react-icons/fa6";
 import { QRCodeSVG } from "qrcode.react";
 import { formatCurrency } from "@/lib/format";
@@ -23,6 +23,7 @@ export default function CustomerDisplayPage() {
   const [favoriteIconNames, setFavoriteIconNames] = useState<string[]>([]);
   const [particles, setParticles] = useState<any[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const lastToggleIdRef = useRef<number | null>(null);
 
   // Generování plovoucích ikon na pozadí
   useEffect(() => {
@@ -198,6 +199,34 @@ export default function CustomerDisplayPage() {
       }
     }
   };
+
+  // Vzdálené přepnutí fullscreenu (připraví jednorázový click listener pro ADB tap)
+  useEffect(() => {
+    const incomingId = state.fullscreenToggleId ?? 0;
+    if (lastToggleIdRef.current === null) {
+      lastToggleIdRef.current = incomingId;
+      return;
+    }
+    if (!incomingId || incomingId === lastToggleIdRef.current) return;
+    lastToggleIdRef.current = incomingId;
+
+    const handleArmedTap = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFullscreen();
+      window.removeEventListener("click", handleArmedTap, true);
+    };
+
+    window.addEventListener("click", handleArmedTap, true);
+    const timer = setTimeout(() => {
+      window.removeEventListener("click", handleArmedTap, true);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleArmedTap, true);
+    };
+  }, [state.fullscreenToggleId]);
 
   const receipt = state?.receipt || [];
   const total = receipt.reduce((sum, item) => sum + (item?.price || 0), 0);

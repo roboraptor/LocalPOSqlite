@@ -69,3 +69,20 @@ export interface GeneralSettings {
   receipt_footer_enabled: number;
   use_external_qr_api: number;
 }
+
+export interface CustomerDisplaySettings {
+  id: number;
+  adb_path: string;
+  device_serial: string;
+  port: number;
+  auto_reverse: number;
+  auto_open_cd: number;
+  auto_immersive: number;
+  auto_stay_on: number;
+  auto_brightness: number;
+  idle_brightness: number;
+  active_brightness: number;
+  qr_brightness: number;
+  tap_x: number;
+  tap_y: number;
+}

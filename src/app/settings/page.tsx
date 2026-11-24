@@ -11,6 +11,7 @@ import EetSettings from "@/components/settings/EetSettings";
 import IconsSettings from "@/components/settings/IconsSettings";
 import TablesSettings from "@/components/settings/TablesSettings";
 import DBSettings from "@/components/settings/DBSettings";
+import CustomerDisplaySettings from "@/components/settings/CustomerDisplaySettings";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("org_info");
@@ -178,6 +179,12 @@ export default function SettingsPage() {
               Aplikace
             </div>
             <button
+              className={`list-group-item list-group-item-action border-start-0 border-end-0 ${activeTab === "customer_display" ? "active" : ""}`}
+              onClick={() => setActiveTab("customer_display")}
+            >
+              📱 Klientský displej
+            </button>
+            <button
               className={`list-group-item list-group-item-action border-start-0 border-end-0 ${activeTab === "db_settings" ? "active" : ""}`}
               onClick={() => setActiveTab("db_settings")}
             >
@@ -195,6 +202,7 @@ export default function SettingsPage() {
             {activeTab === "receipt_info" && <ReceiptSettings />}
             {activeTab === "payment_info" && <PaymentSettings />}
             {activeTab === "eet_info" && <EetSettings />}
+            {activeTab === "customer_display" && <CustomerDisplaySettings />}
             {activeTab === "db_settings" && <DBSettings />}
           </div>
         </div>
