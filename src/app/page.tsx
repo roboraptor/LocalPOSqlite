@@ -9,6 +9,7 @@ import { Item, Category, Tab } from "@/types/db";
 import { QRCodeSVG } from "qrcode.react";
 import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
 import { formatCurrency } from "@/lib/format";
+import { formatStockNumber } from "@/lib/stock";
 
 const modal_timeout = 3000;
 
@@ -362,19 +363,55 @@ export default function PosPage() {
                     <span>{group.name}</span>
                   </h2>
                   <div className="buttons">
-                    {group.items.map((item) => (
-                      <button
-                        key={item.id}
-                        className="btn-items btn-success btn-items--tri"
-                        onClick={() => addItem(item)}
-                      >
-                        <div className="btn-items__title">{item.name}</div>
-                        <div className="btn-items__icon">
-                          <IconByName name={item.icon} fallback={Fa.FaUtensils} size={null} />
-                        </div>
-                        <div className="btn-items__price">{fmt(item.price)}</div>
-                      </button>
-                    ))}
+                    {group.items.map((item) => {
+                      const hasStock =
+                        item.stock_initial != null &&
+                        item.stock_initial > 0 &&
+                        item.stock_deduct != null &&
+                        item.stock_deduct > 0;
+                      const percent = hasStock ? (item.stock_percent ?? 100) : 0;
+                      const remaining = hasStock
+                        ? (item.stock_remaining ?? item.stock_initial ?? 0)
+                        : 0;
+                      const isEmpty = hasStock && remaining <= 0;
+                      const barColor =
+                        percent > 25
+                          ? "rgba(255, 255, 255, 0.92)"
+                          : percent > 10
+                            ? "#facc15"
+                            : "#ef4444";
+                      const stockTitle = hasStock
+                        ? `Sklad: ${formatStockNumber(remaining)} / ${formatStockNumber(item.stock_initial!)} ${item.stock_unit || "ks"}`
+                        : undefined;
+
+                      return (
+                        <button
+                          key={item.id}
+                          className="btn-items btn-success btn-items--tri"
+                          onClick={() => addItem(item)}
+                          title={stockTitle}
+                        >
+                          <div className="btn-items__title">{item.name}</div>
+                          <div className="btn-items__icon">
+                            <IconByName name={item.icon} fallback={Fa.FaUtensils} size={null} />
+                          </div>
+                          <div className="btn-items__price">{fmt(item.price)}</div>
+                          {hasStock && (
+                            <div className="btn-items__stock-bar">
+                              <div
+                                className="btn-items__stock-fill"
+                                style={{ width: `${percent}%`, backgroundColor: barColor }}
+                              />
+                            </div>
+                          )}
+                          {isEmpty && (
+                            <span className="btn-items__stock-empty" aria-label="Vyprodáno">
+                              <Fa.FaTriangleExclamation />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
               ),

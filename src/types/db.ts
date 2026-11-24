@@ -7,6 +7,12 @@ export interface Item {
   category: string;
   position: number;
   icon: string | null;
+  stock_unit?: string | null;
+  stock_initial?: number | null;
+  stock_deduct?: number | null;
+  stock_used_count?: number;
+  stock_remaining?: number | null;
+  stock_percent?: number | null;
 }
 
 export interface Category {

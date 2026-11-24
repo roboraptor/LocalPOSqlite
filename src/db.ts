@@ -98,7 +98,10 @@ export function initDb(targetDb?: Database.Database) {
       price REAL NOT NULL,
       category TEXT DEFAULT 'Ostatní',
       position INTEGER DEFAULT 0,
-      icon TEXT
+      icon TEXT,
+      stock_unit TEXT,
+      stock_initial REAL,
+      stock_deduct REAL
     );
 
     CREATE TABLE IF NOT EXISTS receipts (
@@ -184,6 +187,17 @@ export function initDb(targetDb?: Database.Database) {
     );
     INSERT OR IGNORE INTO customer_display_settings (id) VALUES (1);
   `);
+
+  const itemCols = database.prepare("PRAGMA table_info(items)").all() as { name: string }[];
+  if (!itemCols.some((c) => c.name === "stock_unit")) {
+    database.exec("ALTER TABLE items ADD COLUMN stock_unit TEXT");
+  }
+  if (!itemCols.some((c) => c.name === "stock_initial")) {
+    database.exec("ALTER TABLE items ADD COLUMN stock_initial REAL");
+  }
+  if (!itemCols.some((c) => c.name === "stock_deduct")) {
+    database.exec("ALTER TABLE items ADD COLUMN stock_deduct REAL");
+  }
 
   const receiptCols = database.prepare("PRAGMA table_info(receipts)").all() as { name: string }[];
   if (!receiptCols.some((c) => c.name === "is_staff")) {

@@ -7,6 +7,7 @@ import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
 import { Item, Category } from "@/types/db";
 import { formatCurrency } from "@/lib/format";
+import { formatStockNumber } from "@/lib/stock";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
 
 // Nová komponenta pro kartu položky pro lepší přehlednost
@@ -53,6 +54,46 @@ function ItemCard({
       <div className="muted">
         Kategorie: <strong>{item.category || "Ostatní"}</strong>
       </div>
+      {item.stock_initial != null && item.stock_initial > 0 && item.stock_deduct != null && (
+        <div style={{ marginTop: 6 }}>
+          <div className="muted" style={{ fontSize: "0.85rem" }}>
+            Sklad:{" "}
+            <strong
+              style={{
+                color:
+                  (item.stock_remaining ?? item.stock_initial) <= 0 ? "#ef4444" : undefined,
+              }}
+            >
+              {formatStockNumber(item.stock_remaining ?? item.stock_initial)}
+            </strong>{" "}
+            / {formatStockNumber(item.stock_initial)} {item.stock_unit || "ks"} (prodej{" "}
+            {formatStockNumber(item.stock_deduct)} {item.stock_unit || "ks"})
+          </div>
+          <div
+            style={{
+              marginTop: 4,
+              height: 5,
+              borderRadius: 999,
+              background: "rgba(255, 255, 255, 0.12)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${item.stock_percent ?? 100}%`,
+                height: "100%",
+                background:
+                  (item.stock_percent ?? 100) > 25
+                    ? "#22c55e"
+                    : (item.stock_percent ?? 100) > 10
+                      ? "#f59e0b"
+                      : "#ef4444",
+                transition: "width 0.2s ease",
+              }}
+            />
+          </div>
+        </div>
+      )}
       <div
         style={{
           marginTop: 12,
@@ -106,6 +147,9 @@ export default function ItemsAdmin() {
     category: defaultCategory,
     icon: "FaCubes",
     position: "",
+    stock_unit: "",
+    stock_initial: "",
+    stock_deduct: "",
   };
   const [form, setForm] = useState<{
     id: number | null;
@@ -114,6 +158,9 @@ export default function ItemsAdmin() {
     category: string;
     icon: string;
     position: string | number;
+    stock_unit: string;
+    stock_initial: string;
+    stock_deduct: string;
   }>(emptyForm);
 
   const load = async () => {
@@ -216,6 +263,13 @@ export default function ItemsAdmin() {
     const category = form.category;
     const icon = form.icon?.trim() || "FaRegSquare";
     const position = form.position === "" ? undefined : Number(form.position);
+    const stockInitialStr = String(form.stock_initial ?? "")
+      .replace(",", ".")
+      .trim();
+    const stockDeductStr = String(form.stock_deduct ?? "")
+      .replace(",", ".")
+      .trim();
+    const stockUnitStr = String(form.stock_unit ?? "").trim();
 
     if (!name) {
       alert("Název nesmí být prázdný.");
@@ -230,11 +284,50 @@ export default function ItemsAdmin() {
       return;
     }
 
+    let stock_unit: string | null = null;
+    let stock_initial: number | null = null;
+    let stock_deduct: number | null = null;
+
+    if (stockInitialStr !== "") {
+      const parsedInitial = Number(stockInitialStr);
+      if (!Number.isFinite(parsedInitial) || parsedInitial <= 0) {
+        alert("Naskladněné množství musí být kladné číslo.");
+        return;
+      }
+      const parsedDeduct = stockDeductStr === "" ? 1 : Number(stockDeductStr);
+      if (!Number.isFinite(parsedDeduct) || parsedDeduct <= 0) {
+        alert("Odečet za prodej musí být kladné číslo.");
+        return;
+      }
+      stock_initial = parsedInitial;
+      stock_deduct = parsedDeduct;
+      stock_unit = stockUnitStr || "ks";
+    }
+
     try {
       const method = form.id ? "PUT" : "POST";
       const body = form.id
-        ? { id: form.id, name, price, category, icon, position }
-        : { name, price, category, icon, position };
+        ? {
+            id: form.id,
+            name,
+            price,
+            category,
+            icon,
+            position,
+            stock_unit,
+            stock_initial,
+            stock_deduct,
+          }
+        : {
+            name,
+            price,
+            category,
+            icon,
+            position,
+            stock_unit,
+            stock_initial,
+            stock_deduct,
+          };
 
       const res = await fetch("/api/items", {
         method,
@@ -260,6 +353,9 @@ export default function ItemsAdmin() {
       category: item.category || "Ostatní",
       icon: item.icon || "FaRegSquare",
       position: item.position ?? "",
+      stock_unit: item.stock_unit ?? "",
+      stock_initial: item.stock_initial != null ? String(item.stock_initial) : "",
+      stock_deduct: item.stock_deduct != null ? String(item.stock_deduct) : "",
     });
 
   const del = async (id: number) => {
@@ -466,6 +562,73 @@ export default function ItemsAdmin() {
                         </button>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skladovost (volitelné) */}
+              <div style={{ marginTop: "0.75rem" }}>
+                <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.35rem" }}>
+                  Skladovost (volitelné — nevyplněné = bez sledování)
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "0.75rem",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    alignItems: "end",
+                  }}
+                >
+                  <div>
+                    <label className="form-label" htmlFor="stock_unit">
+                      Jednotka
+                    </label>
+                    <input
+                      id="stock_unit"
+                      list="stock-units"
+                      className="input"
+                      placeholder="např. L, ks"
+                      value={form.stock_unit}
+                      onChange={(e) => setForm((f) => ({ ...f, stock_unit: e.target.value }))}
+                    />
+                    <datalist id="stock-units">
+                      <option value="ks" />
+                      <option value="L" />
+                      <option value="ml" />
+                      <option value="g" />
+                      <option value="kg" />
+                      <option value="porce" />
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="stock_initial">
+                      Naskladněno
+                    </label>
+                    <input
+                      id="stock_initial"
+                      className="input"
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="např. 60"
+                      value={form.stock_initial}
+                      onChange={(e) => setForm((f) => ({ ...f, stock_initial: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="stock_deduct">
+                      Odečet za prodej
+                    </label>
+                    <input
+                      id="stock_deduct"
+                      className="input"
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="např. 0.5 nebo 1"
+                      value={form.stock_deduct}
+                      onChange={(e) => setForm((f) => ({ ...f, stock_deduct: e.target.value }))}
+                    />
                   </div>
                 </div>
               </div>

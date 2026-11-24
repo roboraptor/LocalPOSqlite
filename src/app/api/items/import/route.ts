@@ -32,13 +32,22 @@ export async function POST(req: NextRequest) {
       }
 
       const insertItem = db.prepare(
-        "INSERT INTO items (name, price, category, icon, position) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO items (name, price, category, icon, position, stock_unit, stock_initial, stock_deduct) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       );
 
       for (const item of items) {
         // Při přidávání k existujícím předáme 0, aby trigger trg_items_next_pos zařadil položku na konec
         const pos = mode === "replace" ? item.position : 0;
-        insertItem.run(item.name, item.price, item.category, item.icon, pos);
+        insertItem.run(
+          item.name,
+          item.price,
+          item.category,
+          item.icon,
+          pos,
+          item.stock_unit ?? null,
+          item.stock_initial ?? null,
+          item.stock_deduct ?? null,
+        );
       }
     });
 

@@ -306,6 +306,40 @@
   height: 70%;
 }
 
+/* Skladovost – ubývající lišta u spodní hrany a indikátor vyprodání vpravo dole */
+.btn-items__stock-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  z-index: 2;
+}
+.btn-items__stock-fill {
+  height: 100%;
+  transition:
+    width 0.25s ease,
+    background-color 0.25s ease;
+}
+.btn-items__stock-empty {
+  position: absolute;
+  right: 5px;
+  bottom: 7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 3;
+}
+
 /* ================================================================
    7) RESPONZIVITA
    - Na úzkých displejích zmenšíme min. šířku a výšku dlaždic,
