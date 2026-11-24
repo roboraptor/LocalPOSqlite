@@ -12,6 +12,7 @@ import IconsSettings from "@/components/settings/IconsSettings";
 import TablesSettings from "@/components/settings/TablesSettings";
 import DBSettings from "@/components/settings/DBSettings";
 import CustomerDisplaySettings from "@/components/settings/CustomerDisplaySettings";
+import ImportSettings from "@/components/settings/ImportSettings";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("org_info");
@@ -185,6 +186,12 @@ export default function SettingsPage() {
               📱 Klientský displej
             </button>
             <button
+              className={`list-group-item list-group-item-action border-start-0 border-end-0 ${activeTab === "import" ? "active" : ""}`}
+              onClick={() => setActiveTab("import")}
+            >
+              📥 Import
+            </button>
+            <button
               className={`list-group-item list-group-item-action border-start-0 border-end-0 ${activeTab === "db_settings" ? "active" : ""}`}
               onClick={() => setActiveTab("db_settings")}
             >
@@ -203,6 +210,7 @@ export default function SettingsPage() {
             {activeTab === "payment_info" && <PaymentSettings />}
             {activeTab === "eet_info" && <EetSettings />}
             {activeTab === "customer_display" && <CustomerDisplaySettings />}
+            {activeTab === "import" && <ImportSettings />}
             {activeTab === "db_settings" && <DBSettings />}
           </div>
         </div>
