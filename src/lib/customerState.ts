@@ -9,6 +9,7 @@ export interface CustomerState {
   externalQrUrl: string | null;
   status: "pending" | "completed";
   fullscreenToggleId?: number;
+  fullscreenAction?: "toggle" | "enter";
 }
 
 const globalForCustomerState = global as unknown as {
@@ -25,6 +26,7 @@ if (!globalForCustomerState.customerState) {
     externalQrUrl: null,
     status: "pending",
     fullscreenToggleId: 0,
+    fullscreenAction: "toggle",
   };
 }
 

@@ -104,6 +104,7 @@ describe("tabs timestamp & cleanup triggers", () => {
       adb_path: string;
       port: number;
       auto_reverse: number;
+      auto_fullscreen: number;
       active_brightness: number;
       qr_brightness: number;
       tap_x: number;
@@ -115,9 +116,10 @@ describe("tabs timestamp & cleanup triggers", () => {
     expect(row.adb_path).toBe("adb");
     expect(row.port).toBe(3000);
     expect(row.auto_reverse).toBe(0);
+    expect(row.auto_fullscreen).toBe(0);
     expect(row.active_brightness).toBe(100);
     expect(row.qr_brightness).toBe(200);
     expect(row.tap_x).toBe(400);
-    expect(row.tap_y).toBe(100);
+    expect(row.tap_y).toBe(150);
   });
 });

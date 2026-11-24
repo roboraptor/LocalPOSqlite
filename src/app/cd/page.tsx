@@ -209,11 +209,20 @@ export default function CustomerDisplayPage() {
     }
     if (!incomingId || incomingId === lastToggleIdRef.current) return;
     lastToggleIdRef.current = incomingId;
+    const action = state.fullscreenAction || "toggle";
 
     const handleArmedTap = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      toggleFullscreen();
+      if (action === "enter") {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch((err) => {
+            console.error("Chyba při vstupu do fullscreen režimu:", err);
+          });
+        }
+      } else {
+        toggleFullscreen();
+      }
       window.removeEventListener("click", handleArmedTap, true);
     };
 

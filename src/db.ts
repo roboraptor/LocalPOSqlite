@@ -172,13 +172,15 @@ export function initDb(targetDb?: Database.Database) {
       auto_reverse INTEGER DEFAULT 0,
       auto_open_cd INTEGER DEFAULT 0,
       auto_immersive INTEGER DEFAULT 0,
+      auto_fullscreen INTEGER DEFAULT 0,
       auto_stay_on INTEGER DEFAULT 0,
       auto_brightness INTEGER DEFAULT 0,
       idle_brightness INTEGER DEFAULT 60,
       active_brightness INTEGER DEFAULT 100,
       qr_brightness INTEGER DEFAULT 200,
       tap_x INTEGER DEFAULT 400,
-      tap_y INTEGER DEFAULT 100
+      tap_y INTEGER DEFAULT 150,
+      auto_delays TEXT DEFAULT '{}'
     );
     INSERT OR IGNORE INTO customer_display_settings (id) VALUES (1);
   `);
@@ -198,7 +200,13 @@ export function initDb(targetDb?: Database.Database) {
     database.exec("ALTER TABLE customer_display_settings ADD COLUMN tap_x INTEGER DEFAULT 400");
   }
   if (!cdCols.some((c) => c.name === "tap_y")) {
-    database.exec("ALTER TABLE customer_display_settings ADD COLUMN tap_y INTEGER DEFAULT 100");
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN tap_y INTEGER DEFAULT 150");
+  }
+  if (!cdCols.some((c) => c.name === "auto_fullscreen")) {
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN auto_fullscreen INTEGER DEFAULT 0");
+  }
+  if (!cdCols.some((c) => c.name === "auto_delays")) {
+    database.exec("ALTER TABLE customer_display_settings ADD COLUMN auto_delays TEXT DEFAULT '{}'");
   }
 
   return database;

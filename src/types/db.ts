@@ -70,6 +70,15 @@ export interface GeneralSettings {
   use_external_qr_api: number;
 }
 
+export interface AutoStepDelays {
+  auto_stay_on: number;
+  auto_immersive: number;
+  auto_reverse: number;
+  auto_open_cd: number;
+  auto_fullscreen: number;
+  auto_brightness: number;
+}
+
 export interface CustomerDisplaySettings {
   id: number;
   adb_path: string;
@@ -78,6 +87,7 @@ export interface CustomerDisplaySettings {
   auto_reverse: number;
   auto_open_cd: number;
   auto_immersive: number;
+  auto_fullscreen: number;
   auto_stay_on: number;
   auto_brightness: number;
   idle_brightness: number;
@@ -85,4 +95,5 @@ export interface CustomerDisplaySettings {
   qr_brightness: number;
   tap_x: number;
   tap_y: number;
+  auto_delays: string;
 }

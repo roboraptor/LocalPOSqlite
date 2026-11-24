@@ -1,10 +1,11 @@
 // c:\projects\LocalPOSjson\src\app\api\customer-display\update\route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getState, updateState } from "@/lib/customerState";
-import { getCustomerDisplaySettings, triggerAutoBrightness } from "@/lib/adb";
+import { ensureAdbWatcher, getCustomerDisplaySettings, triggerAutoBrightness } from "@/lib/adb";
 
 export async function POST(req: NextRequest) {
   try {
+    ensureAdbWatcher();
     const body = await req.json();
     const prev = getState();
     const prevShowQR = Boolean(prev.showQRModal);
