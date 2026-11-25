@@ -74,6 +74,50 @@ const AUTO_STEPS: {
   },
 ];
 
+function CopyCommandBox({
+  description,
+  command,
+}: {
+  description: string;
+  command: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert(`Zkopíruj příkaz ručně:\n${command}`);
+    }
+  };
+
+  return (
+    <div className="alert alert-secondary py-2 px-3 small mb-3">
+      <div className="mb-1">{description}</div>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <code className="user-select-all">{command}</code>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-light d-flex align-items-center gap-1"
+          onClick={handleCopy}
+        >
+          {copied ? (
+            <>
+              <Fa.FaCheck /> Zkopírováno
+            </>
+          ) : (
+            <>
+              <Fa.FaCopy /> Kopírovat
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerDisplaySettings() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -82,6 +126,12 @@ export default function CustomerDisplaySettings() {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [battery, setBattery] = useState<BatteryInfo | null>(null);
   const [manualBrightness, setManualBrightness] = useState<number>(180);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFrameLoaded, setPreviewFrameLoaded] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<"idle" | "live" | "timeout" | "error">("idle");
+  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [previewSecondsLeft, setPreviewSecondsLeft] = useState<number>(180);
 
   const [formData, setFormData] = useState({
     adb_path: "adb",
@@ -129,6 +179,66 @@ export default function CustomerDisplaySettings() {
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (previewStatus !== "live") return;
+    const timer = setInterval(() => {
+      setPreviewSecondsLeft((prev) => {
+        if (prev <= 1) {
+          setPreviewStatus("timeout");
+          setPreviewMessage("Náhled ukončen (limit 3 minuty).");
+          setPreviewUrl(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [previewStatus]);
+
+  const startPreview = async () => {
+    setPreviewLoading(true);
+    setPreviewMessage(null);
+    setPreviewFrameLoaded(false);
+    const params = new URLSearchParams({
+      adb_path: formData.adb_path,
+      device_serial: formData.device_serial,
+    });
+    try {
+      const res = await fetch(`/api/settings/customer-display/preview?check=1&${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPreviewStatus("error");
+        setPreviewMessage(data.error || "Náhled se nepodařilo spustit.");
+        setPreviewUrl(null);
+        return;
+      }
+      setPreviewSecondsLeft(180);
+      setPreviewStatus("live");
+      setPreviewUrl(`/api/settings/customer-display/preview?${params.toString()}&t=${Date.now()}`);
+    } catch (err: any) {
+      setPreviewStatus("error");
+      setPreviewMessage(err?.message || "Nepodařilo se spustit náhled.");
+      setPreviewUrl(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const stopPreview = () => {
+    setPreviewUrl(null);
+    setPreviewFrameLoaded(false);
+    setPreviewStatus("idle");
+    setPreviewMessage(null);
+  };
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
 
   const runAction = async (action: string, value?: number) => {
     setBusy(true);
@@ -333,6 +443,11 @@ export default function CustomerDisplaySettings() {
             </div>
           </div>
 
+          <CopyCommandBox
+            description="Pro funkci ADB je potřeba nainstalovat Android Platform Tools (spusťte v CMD):"
+            command="winget install Google.PlatformTools"
+          />
+
           <hr />
 
           {/* 3. Manuální ovládání */}
@@ -506,6 +621,88 @@ export default function CustomerDisplaySettings() {
                 255
               </button>
             </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+              {previewStatus === "live" ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2"
+                    onClick={stopPreview}
+                  >
+                    <Fa.FaStop /> Zavřít náhled
+                  </button>
+                  <span className="badge bg-success">
+                    Živě • zbývá {formatCountdown(previewSecondsLeft)}
+                  </span>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-outline-info btn-sm d-flex align-items-center gap-2"
+                  onClick={startPreview}
+                  disabled={previewLoading}
+                >
+                  {previewStatus === "timeout" ? <Fa.FaRotateRight /> : <Fa.FaVideo />}
+                  {previewLoading
+                    ? "Spouštím náhled..."
+                    : previewStatus === "timeout"
+                      ? "Obnovit náhled"
+                      : "Zobrazit náhled"}
+                </button>
+              )}
+            </div>
+
+            {previewMessage && (
+              <div
+                className={`alert ${previewStatus === "error" ? "alert-danger" : "alert-warning"} py-2 px-3 small mb-2`}
+              >
+                {previewMessage}
+              </div>
+            )}
+
+            {previewUrl && (
+              <div
+                className="p-2 text-center rounded mb-2 d-flex flex-column align-items-center justify-content-center"
+                style={{
+                  backgroundColor: "#000",
+                  border: "1px solid var(--border)",
+                  minHeight: previewFrameLoaded ? undefined : 160,
+                }}
+              >
+                {!previewFrameLoaded && (
+                  <div className="small text-mute py-3">Načítám obraz z telefonu...</div>
+                )}
+                <img
+                  src={previewUrl}
+                  alt="Živý náhled obrazovky telefonu"
+                  style={{
+                    maxHeight: 420,
+                    maxWidth: "100%",
+                    borderRadius: 6,
+                    display: previewFrameLoaded ? "block" : "none",
+                  }}
+                  onLoad={() => setPreviewFrameLoaded(true)}
+                  onError={() => {
+                    if (previewStatus === "live") {
+                      setPreviewStatus("timeout");
+                      setPreviewMessage(
+                        "Náhled byl ukončen (limit 3 minuty nebo odpojení zařízení).",
+                      );
+                      setPreviewUrl(null);
+                      setPreviewFrameLoaded(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            <CopyCommandBox
+              description="Pro použití živého náhledu obrazovky je potřeba mít nainstalovaný FFmpeg (spusťte v CMD):"
+              command="winget install Gyan.FFmpeg"
+            />
           </div>
 
           <hr />

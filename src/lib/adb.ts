@@ -8,6 +8,7 @@ import { customerClients, updateState } from "@/lib/customerState";
 
 const execFileAsync = promisify(execFile);
 let cachedAdbBin: string | null = null;
+let cachedFfmpegBin: string | null = null;
 
 export const DEFAULT_AUTO_DELAYS: AutoStepDelays = {
   auto_stay_on: 0,
@@ -136,6 +137,67 @@ function findWindowsAdb(): string | null {
     if (fs.existsSync(candidate)) return candidate;
   }
   return null;
+}
+
+function findWindowsFfmpeg(): string | null {
+  if (process.platform !== "win32") return null;
+  const localAppData = process.env.LOCALAPPDATA || "";
+  const candidates: string[] = ["C:\\ffmpeg\\bin\\ffmpeg.exe"];
+
+  if (localAppData) {
+    candidates.push(path.join(localAppData, "Microsoft", "WinGet", "Links", "ffmpeg.exe"));
+
+    const packagesDir = path.join(localAppData, "Microsoft", "WinGet", "Packages");
+    try {
+      for (const entry of fs.readdirSync(packagesDir)) {
+        if (!entry.startsWith("Gyan.FFmpeg")) continue;
+        const pkgDir = path.join(packagesDir, entry);
+        candidates.push(path.join(pkgDir, "bin", "ffmpeg.exe"));
+        try {
+          for (const sub of fs.readdirSync(pkgDir)) {
+            candidates.push(path.join(pkgDir, sub, "bin", "ffmpeg.exe"));
+          }
+        } catch {
+          // ignore unreadable subfolder
+        }
+      }
+    } catch {
+      // WinGet packages folder might not exist
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+export function resolveAdbBinary(adbPath?: string): string {
+  const rawBin = (adbPath || "adb").trim() || "adb";
+  if (rawBin !== "adb") return rawBin;
+  if (!cachedAdbBin) {
+    cachedAdbBin = findWindowsAdb();
+  }
+  return cachedAdbBin || "adb";
+}
+
+export function resolveFfmpegBinary(): string {
+  if (!cachedFfmpegBin) {
+    cachedFfmpegBin = findWindowsFfmpeg();
+  }
+  return cachedFfmpegBin || "ffmpeg";
+}
+
+export async function isBinaryAvailable(
+  bin: string,
+  args: string[] = ["-version"],
+): Promise<boolean> {
+  try {
+    await execFileAsync(bin, args, { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function runAdb(adbPath: string, args: string[], serial?: string) {
