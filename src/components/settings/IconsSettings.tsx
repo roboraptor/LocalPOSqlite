@@ -4,12 +4,12 @@ import React, { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
+import { toasts } from "@/lib/toasts";
 
 export default function IconsSettings() {
   const [icons, setIcons] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Zvláštní state pro picker, protože do něj vybíráme dočasně
   const [newIcon, setNewIcon] = useState<string>("");
@@ -22,7 +22,7 @@ export default function IconsSettings() {
         const data = await res.json();
         setIcons(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        setError(err.message);
+        toasts.danger(err.message);
       } finally {
         setLoading(false);
       }
@@ -30,9 +30,8 @@ export default function IconsSettings() {
     loadIcons();
   }, []);
 
-  const saveIcons = async (newIconsList: string[]) => {
+  const saveIcons = async (newIconsList: string[], successMessage: string) => {
     setSaving(true);
-    setError(null);
     try {
       const res = await fetch("/api/icons", {
         method: "POST",
@@ -41,8 +40,9 @@ export default function IconsSettings() {
       });
       if (!res.ok) throw new Error("Chyba ukládání");
       setIcons(newIconsList);
+      toasts.success(successMessage);
     } catch (err: any) {
-      setError(err.message);
+      toasts.danger(err.message);
     } finally {
       setSaving(false);
     }
@@ -51,18 +51,18 @@ export default function IconsSettings() {
   const handleAddIcon = () => {
     if (!newIcon) return;
     if (icons.includes(newIcon)) {
-      alert("Tato ikona už v oblíbených je.");
+      toasts.warning("Tato ikona už v oblíbených je.");
       return;
     }
 
     const updated = [...icons, newIcon];
-    saveIcons(updated);
+    saveIcons(updated, "Ikona přidána do oblíbených.");
     setNewIcon(""); // Reset pickeru
   };
 
   const handleRemoveIcon = (iconToRemove: string) => {
     const updated = icons.filter((i) => i !== iconToRemove);
-    saveIcons(updated);
+    saveIcons(updated, "Ikona odebrána z oblíbených.");
   };
 
   if (loading) return <div className="card cardPad">Načítám...</div>;
@@ -77,8 +77,6 @@ export default function IconsSettings() {
           Tyto ikony se budou zobrazovat v horní nabídce při vybírání ikon pro položky a kategorie,
           abyste k nim měli rychlý přístup.
         </p>
-
-        {error && <div className="alert alert-error">{error}</div>}
 
         <div style={{ marginBottom: "2rem" }}>
           <h6 className="mb-3 text-mute">Aktuální oblíbené:</h6>

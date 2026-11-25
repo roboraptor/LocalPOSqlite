@@ -6,6 +6,7 @@ import * as Fa from "react-icons/fa6";
 import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
+import { toasts } from "@/lib/toasts";
 
 export default function CategoriesSettings() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -71,8 +72,9 @@ export default function CategoriesSettings() {
       }
       setForm({ id: null, name: "", color: "#ff0000", position: "", icon: "FaXmark" });
       await loadCategories();
+      toasts.success(form.id ? "Kategorie upravena." : "Kategorie vytvořena.");
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      toasts.danger(error.message || "Chyba při ukládání kategorie.");
     }
   };
 
@@ -89,8 +91,9 @@ export default function CategoriesSettings() {
         throw new Error(errorData.error || "Delete failed");
       }
       await loadCategories();
+      toasts.success("Kategorie smazána.");
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      toasts.danger(error.message || "Chyba při mazání kategorie.");
     }
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { toasts } from "@/lib/toasts";
 
 interface UseGeneralSettingsOptions<T> {
   onLoaded?: (mapped: T) => void;
@@ -53,11 +54,11 @@ export function useGeneralSettings<T extends Record<string, any>>(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      if (res.ok) alert("Nastavení uloženo");
-      else alert("Chyba při ukládání");
+      if (res.ok) toasts.success("Nastavení uloženo.");
+      else toasts.danger("Chyba při ukládání.");
     } catch (error) {
       console.error(error);
-      alert("Chyba při ukládání");
+      toasts.danger("Chyba při ukládání.");
     }
   };
 

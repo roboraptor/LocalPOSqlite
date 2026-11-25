@@ -1,0 +1,93 @@
+/* ==================================================================
+   Toast Notifications ("Plain Design")
+   ================================================================== */
+.toast-container-custom {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 1090;
+  max-width: 360px;
+  width: calc(100% - 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  max-height: 420px;
+}
+
+.toast-item--in {
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-item--out {
+  animation: toast-out 0.3s ease forwards;
+}
+
+.toast-message-text {
+  word-break: break-word;
+}
+
+.toast-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  transform-origin: right center;
+  animation-name: toast-progress-shrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  pointer-events: none;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(120%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 420px;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(120%);
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes toast-progress-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-item--in,
+  .toast-item--out {
+    animation: none;
+    transition: opacity 0.2s ease;
+  }
+  .toast-item--out {
+    opacity: 0;
+    max-height: 0;
+  }
+}

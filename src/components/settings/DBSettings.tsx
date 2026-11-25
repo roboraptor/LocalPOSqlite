@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import * as Fa from "react-icons/fa6";
+import { toasts } from "@/lib/toasts";
 
 export default function DBSettings() {
   const [loading, setLoading] = useState(true);
   const [dbPath, setDbPath] = useState("");
-  const [message, setMessage] = useState<{ text: string; type: "success" | "danger" } | null>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -33,12 +33,12 @@ export default function DBSettings() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ text: data.message, type: "success" });
+        toasts.success(data.message);
       } else {
-        setMessage({ text: data.error, type: "danger" });
+        toasts.danger(data.error);
       }
     } catch (err: any) {
-      setMessage({ text: err.message, type: "danger" });
+      toasts.danger(err.message);
     }
   };
 
@@ -59,12 +59,12 @@ export default function DBSettings() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ text: data.message, type: "success" });
+        toasts.success(data.message);
       } else {
-        setMessage({ text: data.error, type: "danger" });
+        toasts.danger(data.error);
       }
     } catch (err: any) {
-      setMessage({ text: err.message, type: "danger" });
+      toasts.danger(err.message);
     } finally {
       setLoading(false);
     }
@@ -78,12 +78,6 @@ export default function DBSettings() {
         <h5 className="mb-0">Správa Databáze</h5>
       </div>
       <div className="card-body">
-        {message && (
-          <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
-            {message.text}
-            <button type="button" className="btn-close" onClick={() => setMessage(null)}></button>
-          </div>
-        )}
 
         <div className="mb-4">
           <label className="form-label fw-bold">Cesta k databázi (SQLite file)</label>

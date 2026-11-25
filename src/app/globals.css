@@ -1,6 +1,7 @@
 @import "@/components/pos.css"; /* POS specifika – katalogový grid, .btn-items, zvětšené dlaždice */
 @import "@/components/receipts.css"; /* styl pro stránku /receipts */
 @import "@/components/modal.css"; /* potvrzovací modal */
+@import "@/components/toasts.css"; /* toast notifikace (Plain Design) */
 
 /* ================================
    0) CSS RESET + BASE

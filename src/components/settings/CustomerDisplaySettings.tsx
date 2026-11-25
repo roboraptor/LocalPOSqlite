@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import * as Fa from "react-icons/fa6";
 import type { AutoStepDelays } from "@/types/db";
+import { toasts } from "@/lib/toasts";
 
 interface DeviceInfo {
   serial: string;
@@ -87,9 +88,10 @@ function CopyCommandBox({
     try {
       await navigator.clipboard.writeText(command);
       setCopied(true);
+      toasts.success("Příkaz zkopírován do schránky.");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert(`Zkopíruj příkaz ručně:\n${command}`);
+      toasts.warning(`Zkopíruj příkaz ručně: ${command}`);
     }
   };
 
@@ -121,7 +123,6 @@ function CopyCommandBox({
 export default function CustomerDisplaySettings() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "danger" } | null>(null);
 
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [battery, setBattery] = useState<BatteryInfo | null>(null);
@@ -130,7 +131,6 @@ export default function CustomerDisplaySettings() {
   const [previewFrameLoaded, setPreviewFrameLoaded] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<"idle" | "live" | "timeout" | "error">("idle");
-  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
   const [previewSecondsLeft, setPreviewSecondsLeft] = useState<number>(180);
 
   const [formData, setFormData] = useState({
@@ -186,7 +186,7 @@ export default function CustomerDisplaySettings() {
       setPreviewSecondsLeft((prev) => {
         if (prev <= 1) {
           setPreviewStatus("timeout");
-          setPreviewMessage("Náhled ukončen (limit 3 minuty).");
+          toasts.warning("Náhled ukončen (limit 3 minuty).");
           setPreviewUrl(null);
           return 0;
         }
@@ -198,7 +198,6 @@ export default function CustomerDisplaySettings() {
 
   const startPreview = async () => {
     setPreviewLoading(true);
-    setPreviewMessage(null);
     setPreviewFrameLoaded(false);
     const params = new URLSearchParams({
       adb_path: formData.adb_path,
@@ -211,7 +210,7 @@ export default function CustomerDisplaySettings() {
       const data = await res.json();
       if (!res.ok) {
         setPreviewStatus("error");
-        setPreviewMessage(data.error || "Náhled se nepodařilo spustit.");
+        toasts.danger(data.error || "Náhled se nepodařilo spustit.");
         setPreviewUrl(null);
         return;
       }
@@ -220,7 +219,7 @@ export default function CustomerDisplaySettings() {
       setPreviewUrl(`/api/settings/customer-display/preview?${params.toString()}&t=${Date.now()}`);
     } catch (err: any) {
       setPreviewStatus("error");
-      setPreviewMessage(err?.message || "Nepodařilo se spustit náhled.");
+      toasts.danger(err?.message || "Nepodařilo se spustit náhled.");
       setPreviewUrl(null);
     } finally {
       setPreviewLoading(false);
@@ -231,7 +230,6 @@ export default function CustomerDisplaySettings() {
     setPreviewUrl(null);
     setPreviewFrameLoaded(false);
     setPreviewStatus("idle");
-    setPreviewMessage(null);
   };
 
   const formatCountdown = (seconds: number) => {
@@ -242,7 +240,6 @@ export default function CustomerDisplaySettings() {
 
   const runAction = async (action: string, value?: number) => {
     setBusy(true);
-    setMessage(null);
     try {
       const payload: Record<string, any> = {
         action,
@@ -276,18 +273,17 @@ export default function CustomerDisplaySettings() {
         setDevices(Array.isArray(data.devices) ? data.devices : []);
         setBattery(data.battery || null);
         if (!data.devices?.length) {
-          setMessage({ text: "Nebylo nalezeno žádné USB/ADB zařízení.", type: "danger" });
+          toasts.danger("Nebylo nalezeno žádné USB/ADB zařízení.");
         } else {
-          setMessage({
-            text: `Nalezeno zařízení: ${data.devices.length}${data.activeSerial ? ` (aktivní: ${data.activeSerial})` : ""}`,
-            type: "success",
-          });
+          toasts.success(
+            `Nalezeno zařízení: ${data.devices.length}${data.activeSerial ? ` (aktivní: ${data.activeSerial})` : ""}`,
+          );
         }
       } else {
-        setMessage({ text: data.message || "Příkaz proveden.", type: "success" });
+        toasts.success(data.message || "Příkaz proveden.");
       }
     } catch (err: any) {
-      setMessage({ text: err.message, type: "danger" });
+      toasts.danger(err.message);
     } finally {
       setBusy(false);
     }
@@ -316,7 +312,6 @@ export default function CustomerDisplaySettings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setMessage(null);
     try {
       const res = await fetch("/api/settings/customer-display", {
         method: "POST",
@@ -325,9 +320,9 @@ export default function CustomerDisplaySettings() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Chyba při ukládání.");
-      setMessage({ text: "Nastavení klientského displeje uloženo.", type: "success" });
+      toasts.success("Nastavení klientského displeje uloženo.");
     } catch (err: any) {
-      setMessage({ text: err.message, type: "danger" });
+      toasts.danger(err.message);
     } finally {
       setBusy(false);
     }
@@ -346,12 +341,6 @@ export default function CustomerDisplaySettings() {
         <h5 className="mb-0">Klientský displej (USB / ADB)</h5>
       </div>
       <div className="card-body">
-        {message && (
-          <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
-            {message.text}
-            <button type="button" className="btn-close" onClick={() => setMessage(null)}></button>
-          </div>
-        )}
 
         <form onSubmit={handleSave}>
           {/* 1. Stav zařízení a baterie */}
@@ -655,14 +644,6 @@ export default function CustomerDisplaySettings() {
               )}
             </div>
 
-            {previewMessage && (
-              <div
-                className={`alert ${previewStatus === "error" ? "alert-danger" : "alert-warning"} py-2 px-3 small mb-2`}
-              >
-                {previewMessage}
-              </div>
-            )}
-
             {previewUrl && (
               <div
                 className="p-2 text-center rounded mb-2 d-flex flex-column align-items-center justify-content-center"
@@ -688,7 +669,7 @@ export default function CustomerDisplaySettings() {
                   onError={() => {
                     if (previewStatus === "live") {
                       setPreviewStatus("timeout");
-                      setPreviewMessage(
+                      toasts.warning(
                         "Náhled byl ukončen (limit 3 minuty nebo odpojení zařízení).",
                       );
                       setPreviewUrl(null);

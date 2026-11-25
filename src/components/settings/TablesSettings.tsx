@@ -4,19 +4,18 @@ import { useState, useEffect } from "react";
 import * as Fa from "react-icons/fa6";
 import { Tab, Item } from "@/types/db";
 import { formatCurrency } from "@/lib/format";
+import { toasts } from "@/lib/toasts";
 
 export default function TablesSettings() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [currency, setCurrency] = useState("CZK");
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
 
   const [formName, setFormName] = useState("");
   const [accountType, setAccountType] = useState<"table" | "staff" | "account">("table");
 
   const load = async () => {
     setLoading(true);
-    setErr(null);
     try {
       const [tabsRes, generalRes] = await Promise.all([
         fetch("/api/tabs", { cache: "no-store" }),
@@ -29,7 +28,7 @@ export default function TablesSettings() {
         if (generalData?.currency) setCurrency(generalData.currency);
       }
     } catch (e: any) {
-      setErr(e.message);
+      toasts.danger(e.message);
     } finally {
       setLoading(false);
     }
@@ -42,7 +41,7 @@ export default function TablesSettings() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = formName.trim();
-    if (!name) return alert("Název nesmí být prázdný.");
+    if (!name) return toasts.warning("Název nesmí být prázdný.");
 
     const isTable = accountType === "table";
     const isStaff = accountType === "staff";
@@ -63,8 +62,9 @@ export default function TablesSettings() {
       if (!res.ok) throw new Error("Vytvoření selhalo.");
       setFormName("");
       await load();
+      toasts.success("Záznam byl vytvořen.");
     } catch (e: any) {
-      alert(e.message);
+      toasts.danger(e.message);
     }
   };
 
@@ -78,8 +78,9 @@ export default function TablesSettings() {
       });
       if (!res.ok) throw new Error("Smazání selhalo.");
       await load();
+      toasts.success("Záznam byl smazán.");
     } catch (e: any) {
-      alert(e.message);
+      toasts.danger(e.message);
     }
   };
 
@@ -97,7 +98,6 @@ export default function TablesSettings() {
           Zde můžete spravovat permanentní stoly pro restauraci nebo promazávat zaseknuté dočasné
           účty.
         </p>
-        {err && <div className="alert alert-error">{err}</div>}
 
         <section className="" style={{ marginBottom: "2rem" }}>
           <form

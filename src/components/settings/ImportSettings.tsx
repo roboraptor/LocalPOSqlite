@@ -5,6 +5,7 @@ import * as Fa from "react-icons/fa6";
 import IconByName from "@/components/IconByName";
 import { formatCurrency } from "@/lib/format";
 import { NormalizedImportItem, parseItemsImportJson } from "@/lib/importItems";
+import { toasts } from "@/lib/toasts";
 
 export default function ImportSettings() {
   const [currency, setCurrency] = useState("CZK");
@@ -14,7 +15,6 @@ export default function ImportSettings() {
   const [mode, setMode] = useState<"append" | "replace">("append");
   const [createMissingCategories, setCreateMissingCategories] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "danger" } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -33,7 +33,6 @@ export default function ImportSettings() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    setMessage(null);
     setValidationErrors([]);
     setItems([]);
 
@@ -70,7 +69,6 @@ export default function ImportSettings() {
     }
 
     setBusy(true);
-    setMessage(null);
     try {
       const res = await fetch("/api/items/import", {
         method: "POST",
@@ -84,15 +82,14 @@ export default function ImportSettings() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Import selhal.");
 
-      setMessage({
-        text: `Úspěšně naimportováno ${data.imported} položek (${mode === "replace" ? "nahrazeno" : "přidáno k existujícím"}).`,
-        type: "success",
-      });
+      toasts.success(
+        `Úspěšně naimportováno ${data.imported} položek (${mode === "replace" ? "nahrazeno" : "přidáno k existujícím"}).`,
+      );
       setItems([]);
       setFileName("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      setMessage({ text: err.message, type: "danger" });
+      toasts.danger(err.message);
     } finally {
       setBusy(false);
     }
@@ -108,13 +105,6 @@ export default function ImportSettings() {
           Nahrajte záložní <code>.json</code> soubor vytvořený na stránce Export (
           <em>Záloha .JSON</em>).
         </p>
-
-        {message && (
-          <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
-            {message.text}
-            <button type="button" className="btn-close" onClick={() => setMessage(null)}></button>
-          </div>
-        )}
 
         <div className="mb-4">
           <label className="form-label fw-bold" htmlFor="importItemsFile">
