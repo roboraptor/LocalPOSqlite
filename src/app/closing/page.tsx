@@ -5,6 +5,108 @@ import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
 import { GeneralSettings, Item, ParsedReceipt, ParsedTab } from "@/types/db";
 import { formatCurrency, isWithinDateRange } from "@/lib/format";
+import { PrintFooter, PrintHeader } from "@/components/PrintHeader";
+
+interface ProductSaleEntry {
+  name: string;
+  category: string;
+  quantity: number;
+  revenue: number;
+}
+
+function accumulateProduct(
+  map: Record<string, ProductSaleEntry>,
+  item: Item,
+  price: number,
+) {
+  const key = item.name;
+  if (!map[key]) {
+    map[key] = {
+      name: item.name,
+      category: item.category || "Ostatní",
+      quantity: 0,
+      revenue: 0,
+    };
+  }
+  map[key].quantity += 1;
+  map[key].revenue += price;
+}
+
+function PrintProductList({
+  products,
+  fmt,
+  indented = false,
+}: {
+  products: ProductSaleEntry[];
+  fmt: (n: number) => string;
+  indented?: boolean;
+}) {
+  if (products.length === 0) {
+    return (
+      <div style={{ fontSize: 11, color: "#555", paddingLeft: indented ? 10 : 0 }}>
+        Žádné položky
+      </div>
+    );
+  }
+  return (
+    <>
+      {products.map((p) => (
+        <div
+          key={p.name}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 11,
+            marginBottom: 2,
+            paddingLeft: indented ? 10 : 0,
+          }}
+        >
+          <span>
+            {p.name} ({p.category})
+          </span>
+          <span>
+            {p.quantity} ks / {fmt(p.revenue)}
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function PrintPaymentLines({
+  payments,
+  fmt,
+  indented = false,
+}: {
+  payments: {
+    cash: { amount: number; count: number };
+    card: { amount: number; count: number };
+    qr: { amount: number; count: number };
+    other: { amount: number; count: number };
+  };
+  fmt: (n: number) => string;
+  indented?: boolean;
+}) {
+  const rows = [
+    { label: "Hotovost", data: payments.cash },
+    { label: "Karta", data: payments.card },
+    { label: "QR platba", data: payments.qr },
+    { label: "Ostatní", data: payments.other },
+  ].filter((r) => r.data.amount > 0);
+
+  return (
+    <>
+      {rows.map((r) => (
+        <div key={r.label} style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>
+            {indented ? `  ${r.label}` : r.label} ({r.data.count}x):
+          </span>
+          <span>{fmt(r.data.amount)}</span>
+        </div>
+      ))}
+    </>
+  );
+}
 
 export default function ClosingPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
@@ -130,39 +232,18 @@ export default function ClosingPage() {
     let otherCount = 0;
     let openCount = 0;
 
-    const productSales: Record<string, { name: string; category: string; quantity: number; revenue: number }> = {};
+    const productSales: Record<string, ProductSaleEntry> = {};
     const categorySales: Record<string, { name: string; quantity: number; revenue: number }> = {};
 
     // Separate lists for split printing when viewMode === "all"
-    const soldProductSales: Record<string, { name: string; category: string; quantity: number; revenue: number }> = {};
-    const openProductSales: Record<string, { name: string; category: string; quantity: number; revenue: number }> = {};
+    const soldProductSales: Record<string, ProductSaleEntry> = {};
+    const openProductSales: Record<string, ProductSaleEntry> = {};
 
     const addItems = (items: Item[], isTab: boolean) => {
       items.forEach((item) => {
         const price = item.price || 0;
-        const prodKey = item.name;
-        if (!productSales[prodKey]) {
-          productSales[prodKey] = {
-            name: item.name,
-            category: item.category || "Ostatní",
-            quantity: 0,
-            revenue: 0,
-          };
-        }
-        productSales[prodKey].quantity += 1;
-        productSales[prodKey].revenue += price;
-
-        const targetSpec = isTab ? openProductSales : soldProductSales;
-        if (!targetSpec[prodKey]) {
-          targetSpec[prodKey] = {
-            name: item.name,
-            category: item.category || "Ostatní",
-            quantity: 0,
-            revenue: 0,
-          };
-        }
-        targetSpec[prodKey].quantity += 1;
-        targetSpec[prodKey].revenue += price;
+        accumulateProduct(productSales, item, price);
+        accumulateProduct(isTab ? openProductSales : soldProductSales, item, price);
 
         const catKey = item.category || "Ostatní";
         if (!categorySales[catKey]) {
@@ -454,95 +535,75 @@ export default function ClosingPage() {
                 <Fa.FaCreditCard className="me-2" /> Platební metody
               </h5>
 
-              {/* Cash */}
-              {(viewMode === "sold" || viewMode === "all") && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="d-flex align-items-center gap-2">
-                      <Fa.FaMoneyBill1Wave className="text-success" /> Hotovost ({stats.payments.cash.count}x)
-                    </span>
-                    <span className="fw-bold text-success">{fmt(stats.payments.cash.amount)} ({getPercent(stats.payments.cash.amount)}%)</span>
+              {/* Payment methods list */}
+              {[
+                {
+                  key: "cash",
+                  visible: viewMode === "sold" || viewMode === "all",
+                  icon: <Fa.FaMoneyBill1Wave className="text-success" />,
+                  label: `Hotovost (${stats.payments.cash.count}x)`,
+                  amount: stats.payments.cash.amount,
+                  textClass: "text-success",
+                  barClass: "bg-success",
+                },
+                {
+                  key: "card",
+                  visible: viewMode === "sold" || viewMode === "all",
+                  icon: <Fa.FaCreditCard className="text-primary" />,
+                  label: `Karta (${stats.payments.card.count}x)`,
+                  amount: stats.payments.card.amount,
+                  textClass: "text-primary",
+                  barClass: "bg-primary",
+                },
+                {
+                  key: "qr",
+                  visible: viewMode === "sold" || viewMode === "all",
+                  icon: <Fa.FaQrcode className="text-warning" />,
+                  label: `QR Platba (${stats.payments.qr.count}x)`,
+                  amount: stats.payments.qr.amount,
+                  textClass: "text-warning",
+                  barClass: "bg-warning",
+                },
+                {
+                  key: "other",
+                  visible:
+                    (viewMode === "sold" || viewMode === "all") &&
+                    stats.payments.other.amount > 0,
+                  icon: <Fa.FaEllipsis className="text-white" />,
+                  label: `Ostatní / Neuvedeno (${stats.payments.other.count}x)`,
+                  amount: stats.payments.other.amount,
+                  textClass: "text-secondary",
+                  barClass: "bg-secondary",
+                },
+                {
+                  key: "open",
+                  visible: viewMode === "open" || viewMode === "all",
+                  icon: <Fa.FaFolderOpen className="text-info" />,
+                  label: `Otevřené účty (${stats.payments.open.count}x)`,
+                  amount: stats.payments.open.amount,
+                  textClass: "text-info",
+                  barClass: "bg-info",
+                },
+              ]
+                .filter((row) => row.visible)
+                .map((row, idx, arr) => (
+                  <div key={row.key} className={idx < arr.length - 1 ? "mb-3" : undefined}>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="d-flex align-items-center gap-2">
+                        {row.icon} {row.label}
+                      </span>
+                      <span className={`fw-bold ${row.textClass}`}>
+                        {fmt(row.amount)} ({getPercent(row.amount)}%)
+                      </span>
+                    </div>
+                    <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
+                      <div
+                        className={`progress-bar ${row.barClass}`}
+                        style={{ width: `${getPercent(row.amount)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
-                    <div
-                      className="progress-bar bg-success"
-                      style={{ width: `${getPercent(stats.payments.cash.amount)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Card */}
-              {(viewMode === "sold" || viewMode === "all") && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="d-flex align-items-center gap-2">
-                      <Fa.FaCreditCard className="text-primary" /> Karta ({stats.payments.card.count}x)
-                    </span>
-                    <span className="fw-bold text-primary">{fmt(stats.payments.card.amount)} ({getPercent(stats.payments.card.amount)}%)</span>
-                  </div>
-                  <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
-                    <div
-                      className="progress-bar bg-primary"
-                      style={{ width: `${getPercent(stats.payments.card.amount)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* QR Code */}
-              {(viewMode === "sold" || viewMode === "all") && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="d-flex align-items-center gap-2">
-                      <Fa.FaQrcode className="text-warning" /> QR Platba ({stats.payments.qr.count}x)
-                    </span>
-                    <span className="fw-bold text-warning">{fmt(stats.payments.qr.amount)} ({getPercent(stats.payments.qr.amount)}%)</span>
-                  </div>
-                  <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
-                    <div
-                      className="progress-bar bg-warning"
-                      style={{ width: `${getPercent(stats.payments.qr.amount)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Other */}
-              {(viewMode === "sold" || viewMode === "all") && stats.payments.other.amount > 0 && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="d-flex align-items-center gap-2">
-                      <Fa.FaEllipsis className="text-white" /> Ostatní / Neuvedeno ({stats.payments.other.count}x)
-                    </span>
-                    <span className="fw-bold text-secondary">{fmt(stats.payments.other.amount)} ({getPercent(stats.payments.other.amount)}%)</span>
-                  </div>
-                  <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
-                    <div
-                      className="progress-bar bg-secondary"
-                      style={{ width: `${getPercent(stats.payments.other.amount)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Open accounts pending payment */}
-              {(viewMode === "open" || viewMode === "all") && (
-                <div>
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="d-flex align-items-center gap-2">
-                      <Fa.FaFolderOpen className="text-info" /> Otevřené účty ({stats.payments.open.count}x)
-                    </span>
-                    <span className="fw-bold text-info">{fmt(stats.payments.open.amount)} ({getPercent(stats.payments.open.amount)}%)</span>
-                  </div>
-                  <div className="progress" style={{ height: 8, backgroundColor: "var(--surface-2)" }}>
-                    <div
-                      className="progress-bar bg-info"
-                      style={{ width: `${getPercent(stats.payments.open.amount)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+                ))}
             </div>
 
             {/* Card: Categories */}
@@ -616,35 +677,11 @@ export default function ClosingPage() {
 
       {/* Print-only layout (Thermal POS style) */}
       <div className="print-only">
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, margin: "0 0 5px 0", fontWeight: "bold" }}>
-            {general.organization_name || "Local POS"}
-          </h2>
-          {general.organization_address && (
-            <div style={{ fontSize: 11, whiteSpace: "pre-line" }}>{general.organization_address}</div>
-          )}
-          {(general.organization_id || general.organization_vat_id) && (
-            <div style={{ fontSize: 11 }}>
-              {general.organization_id ? `IČO: ${general.organization_id}` : ""}
-              {general.organization_id && general.organization_vat_id ? " • " : ""}
-              {general.organization_vat_id ? `DIČ: ${general.organization_vat_id}` : ""}
-            </div>
-          )}
-          {general.receipt_title && (
-            <div style={{ fontSize: 12, fontWeight: "bold", marginTop: 4 }}>
-              {general.receipt_title}
-            </div>
-          )}
-          {Boolean(general.receipt_header_enabled) && general.receipt_header && (
-            <div style={{ fontSize: 11, whiteSpace: "pre-line", marginTop: 4 }}>
-              {general.receipt_header}
-            </div>
-          )}
-          <div style={{ fontSize: 14, fontWeight: "bold", marginTop: 6 }}>UZÁVĚRKA PRODEJŮ</div>
-          <div style={{ fontSize: 11, color: "#555" }}>
-            Vytvořeno: {new Date().toLocaleString("cs-CZ")}
-          </div>
-        </div>
+        <PrintHeader
+          general={general}
+          documentTitle="UZÁVĚRKA PRODEJŮ"
+          metaText={`Vytvořeno: ${new Date().toLocaleString("cs-CZ")}`}
+        />
 
         <div style={{ borderBottom: "1px dashed black", paddingBottom: 5, marginBottom: 5 }}>
           <strong>Typ uzávěrky:</strong> {
@@ -688,32 +725,7 @@ export default function ClosingPage() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: "bold", textDecoration: "underline", marginBottom: 3 }}>PLATEBNÍ METODY</div>
               {viewMode === "sold" ? (
-                <>
-                  {stats.payments.cash.amount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Hotovost ({stats.payments.cash.count}x):</span>
-                      <span>{fmt(stats.payments.cash.amount)}</span>
-                    </div>
-                  )}
-                  {stats.payments.card.amount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Karta ({stats.payments.card.count}x):</span>
-                      <span>{fmt(stats.payments.card.amount)}</span>
-                    </div>
-                  )}
-                  {stats.payments.qr.amount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>QR platba ({stats.payments.qr.count}x):</span>
-                      <span>{fmt(stats.payments.qr.amount)}</span>
-                    </div>
-                  )}
-                  {stats.payments.other.amount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Ostatní ({stats.payments.other.count}x):</span>
-                      <span>{fmt(stats.payments.other.amount)}</span>
-                    </div>
-                  )}
-                </>
+                <PrintPaymentLines payments={stats.payments} fmt={fmt} />
               ) : (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Otevřené účty ({stats.payments.open.count}x):</span>
@@ -726,20 +738,7 @@ export default function ClosingPage() {
 
             <div>
               <div style={{ fontWeight: "bold", textDecoration: "underline", marginBottom: 3 }}>PRODANÉ POLOŽKY (Product Mix)</div>
-              {stats.products.length === 0 ? (
-                <div style={{ fontSize: 11, color: "#555" }}>Žádné položky</div>
-              ) : (
-                stats.products.map((p) => (
-                  <div key={p.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                    <span>
-                      {p.name} ({p.category})
-                    </span>
-                    <span>
-                      {p.quantity} ks / {fmt(p.revenue)}
-                    </span>
-                  </div>
-                ))
-              )}
+              <PrintProductList products={stats.products} fmt={fmt} />
             </div>
           </>
         )}
@@ -750,48 +749,12 @@ export default function ClosingPage() {
             {/* Zaplaceno Section */}
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: "bold", textDecoration: "underline", marginBottom: 3 }}>ZAPLACENÉ (PAID)</div>
-              {stats.payments.cash.amount > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>  Hotovost ({stats.payments.cash.count}x):</span>
-                  <span>{fmt(stats.payments.cash.amount)}</span>
-                </div>
-              )}
-              {stats.payments.card.amount > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>  Karta ({stats.payments.card.count}x):</span>
-                  <span>{fmt(stats.payments.card.amount)}</span>
-                </div>
-              )}
-              {stats.payments.qr.amount > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>  QR platba ({stats.payments.qr.count}x):</span>
-                  <span>{fmt(stats.payments.qr.amount)}</span>
-                </div>
-              )}
-              {stats.payments.other.amount > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>  Ostatní ({stats.payments.other.count}x):</span>
-                  <span>{fmt(stats.payments.other.amount)}</span>
-                </div>
-              )}
+              <PrintPaymentLines payments={stats.payments} fmt={fmt} indented />
             </div>
 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: "bold", marginBottom: 3 }}>Zaplacené položky (Product Mix):</div>
-              {stats.soldProducts.length === 0 ? (
-                <div style={{ fontSize: 11, color: "#555", paddingLeft: 10 }}>Žádné položky</div>
-              ) : (
-                stats.soldProducts.map((p) => (
-                  <div key={p.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2, paddingLeft: 10 }}>
-                    <span>
-                      {p.name} ({p.category})
-                    </span>
-                    <span>
-                      {p.quantity} ks / {fmt(p.revenue)}
-                    </span>
-                  </div>
-                ))
-              )}
+              <PrintProductList products={stats.soldProducts} fmt={fmt} indented />
             </div>
 
             <div style={{ borderBottom: "1px dashed black", marginBottom: 5 }} />
@@ -807,31 +770,14 @@ export default function ClosingPage() {
 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: "bold", marginBottom: 3 }}>Otevřené položky (Product Mix):</div>
-              {stats.openProducts.length === 0 ? (
-                <div style={{ fontSize: 11, color: "#555", paddingLeft: 10 }}>Žádné položky</div>
-              ) : (
-                stats.openProducts.map((p) => (
-                  <div key={p.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2, paddingLeft: 10 }}>
-                    <span>
-                      {p.name} ({p.category})
-                    </span>
-                    <span>
-                      {p.quantity} ks / {fmt(p.revenue)}
-                    </span>
-                  </div>
-                ))
-              )}
+              <PrintProductList products={stats.openProducts} fmt={fmt} indented />
             </div>
           </>
         )}
 
         <div style={{ borderBottom: "1px dashed black", marginTop: 5, marginBottom: 5 }} />
 
-        {Boolean(general.receipt_footer_enabled) && general.receipt_footer && (
-          <div style={{ textAlign: "center", fontSize: 11, whiteSpace: "pre-line", marginTop: 10 }}>
-            {general.receipt_footer}
-          </div>
-        )}
+        <PrintFooter general={general} />
 
         <div style={{ textAlign: "center", fontSize: 10, marginTop: 15 }}>
           * Konec uzávěrky *

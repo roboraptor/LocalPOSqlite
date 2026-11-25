@@ -7,7 +7,7 @@ import IconPicker from "@/components/IconPicker";
 import IconByName from "@/components/IconByName";
 import { Item, Category } from "@/types/db";
 import { formatCurrency } from "@/lib/format";
-import { formatStockNumber } from "@/lib/stock";
+import { formatStockNumber, hasItemStock } from "@/lib/stock";
 import FAVORITE_ICONS from "@/data/favoriteIcons.json";
 
 // Nová komponenta pro kartu položky pro lepší přehlednost
@@ -54,20 +54,20 @@ function ItemCard({
       <div className="muted">
         Kategorie: <strong>{item.category || "Ostatní"}</strong>
       </div>
-      {item.stock_initial != null && item.stock_initial > 0 && item.stock_deduct != null && (
+      {hasItemStock(item) && (
         <div style={{ marginTop: 6 }}>
           <div className="muted" style={{ fontSize: "0.85rem" }}>
             Sklad:{" "}
             <strong
               style={{
                 color:
-                  (item.stock_remaining ?? item.stock_initial) <= 0 ? "#ef4444" : undefined,
+                  (item.stock_remaining ?? item.stock_initial!) <= 0 ? "#ef4444" : undefined,
               }}
             >
-              {formatStockNumber(item.stock_remaining ?? item.stock_initial)}
+              {formatStockNumber(item.stock_remaining ?? item.stock_initial!)}
             </strong>{" "}
-            / {formatStockNumber(item.stock_initial)} {item.stock_unit || "ks"} (prodej{" "}
-            {formatStockNumber(item.stock_deduct)} {item.stock_unit || "ks"})
+            / {formatStockNumber(item.stock_initial!)} {item.stock_unit || "ks"} (prodej{" "}
+            {formatStockNumber(item.stock_deduct!)} {item.stock_unit || "ks"})
           </div>
           <div
             style={{

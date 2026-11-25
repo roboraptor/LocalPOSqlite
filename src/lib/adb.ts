@@ -57,13 +57,43 @@ export const DEFAULT_CD_SETTINGS: Omit<CustomerDisplaySettings, "id"> = {
   auto_fullscreen: 0,
   auto_stay_on: 0,
   auto_brightness: 0,
-  idle_brightness: 60,
   active_brightness: 100,
   qr_brightness: 200,
   tap_x: 400,
   tap_y: 150,
   auto_delays: JSON.stringify(DEFAULT_AUTO_DELAYS),
 };
+
+export function findTargetAdbDevice(
+  devices: AdbDeviceInfo[],
+  serial?: string,
+): AdbDeviceInfo | undefined {
+  const desired = (serial || "").trim();
+  return desired
+    ? devices.find((d) => d.serial === desired && d.state === "device")
+    : devices.find((d) => d.state === "device");
+}
+
+export function hasAnyAutoEnabled(
+  settings: Pick<
+    CustomerDisplaySettings,
+    | "auto_stay_on"
+    | "auto_immersive"
+    | "auto_reverse"
+    | "auto_open_cd"
+    | "auto_fullscreen"
+    | "auto_brightness"
+  >,
+): boolean {
+  return Boolean(
+    settings.auto_stay_on ||
+      settings.auto_immersive ||
+      settings.auto_reverse ||
+      settings.auto_open_cd ||
+      settings.auto_fullscreen ||
+      settings.auto_brightness,
+  );
+}
 
 export function clampInt(val: unknown, min: number, max: number, fallback: number): number {
   const num = Number(val);
@@ -381,10 +411,7 @@ export function handleDevicePresence(
   settingsArg?: CustomerDisplaySettings,
 ) {
   const settings = settingsArg || getCustomerDisplaySettings();
-  const desiredSerial = (settings.device_serial || "").trim();
-  const target = desiredSerial
-    ? devices.find((d) => d.serial === desiredSerial && d.state === "device")
-    : devices.find((d) => d.state === "device");
+  const target = findTargetAdbDevice(devices, settings.device_serial);
 
   if (!target) {
     globalForAdb.adbLastConnectedSerial = null;
@@ -400,16 +427,7 @@ export function handleDevicePresence(
 
   globalForAdb.adbLastConnectedSerial = target.serial;
 
-  const hasAutoEnabled = Boolean(
-    settings.auto_stay_on ||
-      settings.auto_immersive ||
-      settings.auto_reverse ||
-      settings.auto_open_cd ||
-      settings.auto_fullscreen ||
-      settings.auto_brightness,
-  );
-
-  if (!hasAutoEnabled) return;
+  if (!hasAnyAutoEnabled(settings)) return;
 
   globalForAdb.adbAutomationRunning = true;
   runDeviceAutomation(target.serial, settings)
@@ -430,15 +448,7 @@ export function ensureAdbWatcher() {
   const timer = setInterval(async () => {
     try {
       const settings = getCustomerDisplaySettings();
-      const hasAutoEnabled = Boolean(
-        settings.auto_stay_on ||
-          settings.auto_immersive ||
-          settings.auto_reverse ||
-          settings.auto_open_cd ||
-          settings.auto_fullscreen ||
-          settings.auto_brightness,
-      );
-      if (!hasAutoEnabled) return;
+      if (!hasAnyAutoEnabled(settings)) return;
 
       const { stdout } = await runAdb(settings.adb_path || "adb", ["devices", "-l"]);
       const devices = parseAdbDevices(stdout);

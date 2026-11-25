@@ -47,7 +47,7 @@ export function seedDb() {
     const updateGeneral = db.prepare(`
       UPDATE general SET 
         organization_name = ?, organization_owner = ?, organization_id = ?, 
-        organization_vat_id = ?, bank_iban = ?, trx_msg = ?, 
+        organization_vat_id = ?, bank_iban = ?, currency = ?, trx_msg = ?, 
         trx_vs_enabled = ?, trx_ks = ?, receipt_title = ?, 
         receipt_header = ?, receipt_header_enabled = ?, 
         receipt_footer = ?, receipt_footer_enabled = ?,
@@ -61,6 +61,7 @@ export function seedDb() {
       seedData.general.organization_id,
       seedData.general.organization_vat_id,
       seedData.general.bank_iban,
+      seedData.general.currency,
       seedData.general.trx_msg,
       seedData.general.trx_vs_enabled,
       seedData.general.trx_ks,
@@ -81,12 +82,15 @@ export function seedDb() {
       insertCategory.run(cat);
     }
 
-    // Seed items
+    // Seed items (avoid duplicating items on repeated seed because items.name is not UNIQUE)
+    const findItemByName = db.prepare("SELECT 1 FROM items WHERE name = ?");
     const insertItem = db.prepare(
-      "INSERT OR IGNORE INTO items (name, price, category, icon, position) VALUES (@name, @price, @category, @icon, @position)",
+      "INSERT INTO items (name, price, category, icon, position) VALUES (@name, @price, @category, @icon, @position)",
     );
     for (const item of seedData.items) {
-      insertItem.run(item);
+      if (!findItemByName.get(item.name)) {
+        insertItem.run(item);
+      }
     }
   });
 

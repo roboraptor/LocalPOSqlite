@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db"; // Alias @ by měl směřovat do src, nebo použijte relativní cestu '../../../../src/db'
 import { Item } from "@/types/db";
-import { calculateItemStock, computeItemUsageCounts } from "@/lib/stock";
+import { calculateItemStock, computeItemUsageCounts, hasItemStock } from "@/lib/stock";
 
 function parseStockPayload(body: Record<string, unknown>):
   | { error: string }
@@ -54,13 +54,7 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY position ASC";
 
     const items = db.prepare(query).all(...params) as Item[];
-    const hasStockItems = items.some(
-      (i) =>
-        i.stock_initial != null &&
-        i.stock_initial > 0 &&
-        i.stock_deduct != null &&
-        i.stock_deduct > 0,
-    );
+    const hasStockItems = items.some((i) => hasItemStock(i));
 
     let usageCounts = new Map<number, number>();
     if (hasStockItems) {

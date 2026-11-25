@@ -9,7 +9,7 @@ import { Item, Category, Tab } from "@/types/db";
 import { QRCodeSVG } from "qrcode.react";
 import { generateSpaydString, buildPayliboUrl } from "@/lib/spayd";
 import { formatCurrency } from "@/lib/format";
-import { formatStockNumber } from "@/lib/stock";
+import { formatStockNumber, hasItemStock } from "@/lib/stock";
 
 const modal_timeout = 3000;
 
@@ -141,10 +141,6 @@ export default function PosPage() {
   useEffect(() => {
     const syncCustomerDisplay = async () => {
       try {
-        console.log(
-          "[POS Sync] Syncing state to customer display: receipt items =",
-          receipt.length,
-        );
         const res = await fetch("/api/customer-display/update", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,9 +153,7 @@ export default function PosPage() {
             status: savedModalOpen ? "completed" : "pending",
           }),
         });
-        if (res.ok) {
-          console.log("[POS Sync] Successfully updated customer display state.");
-        } else {
+        if (!res.ok) {
           console.warn(
             "[POS Sync] Failed to update customer display:",
             res.status,
@@ -364,11 +358,7 @@ export default function PosPage() {
                   </h2>
                   <div className="buttons">
                     {group.items.map((item) => {
-                      const hasStock =
-                        item.stock_initial != null &&
-                        item.stock_initial > 0 &&
-                        item.stock_deduct != null &&
-                        item.stock_deduct > 0;
+                      const hasStock = hasItemStock(item);
                       const percent = hasStock ? (item.stock_percent ?? 100) : 0;
                       const remaining = hasStock
                         ? (item.stock_remaining ?? item.stock_initial ?? 0)
@@ -656,95 +646,75 @@ export default function PosPage() {
         </div>
       </Modal>
 
-      <Modal open={showTableModal} onClose={() => setShowTableModal(false)} title="Na Stůl">
-        {tables.length > 0 ? (
-          <div>
-            <h4 style={{ marginBottom: "10px" }}>Výběr stolu:</h4>
-            <div
-              className="grid-tiny"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
-            >
-              {tables.map((tab) => {
-                const tabTotal = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
-                return (
-                  <button
-                    key={tab.id}
-                    className={`btn ${tabTotal > 0 ? "btn-danger" : "btn-success"}`}
-                    onClick={() => handleSelectTab(tab)}
-                    style={{
-                      height: "60px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <strong>{tab.name}</strong>
-                    {tabTotal > 0 ? <small>{fmt(tabTotal)}</small> : <small>Volný</small>}
-                  </button>
-                );
-              })}
+      {[
+        {
+          open: showTableModal,
+          onClose: () => {
+            setTabInputName("");
+            setShowTableModal(false);
+          },
+          title: "Na Stůl",
+          heading: "Výběr stolu:",
+          list: tables,
+          emptyText: "Zatím nejsou vytvořeny žádné stoly. Lze je přidat v administraci stolů.",
+        },
+        {
+          open: showStaffModal,
+          onClose: () => setShowStaffModal(false),
+          title: "Na Staff",
+          heading: "Výběr staff účtu:",
+          list: staffTabs,
+          emptyText: "Zatím nejsou vytvořeny žádné staff účty. Lze je přidat v nastavení.",
+        },
+      ].map((picker) => (
+        <Modal
+          key={picker.title}
+          open={picker.open}
+          onClose={picker.onClose}
+          title={picker.title}
+        >
+          {picker.list.length > 0 ? (
+            <div>
+              <h4 style={{ marginBottom: "10px" }}>{picker.heading}</h4>
+              <div
+                className="grid-tiny"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
+              >
+                {picker.list.map((tab) => {
+                  const tabTotal = tab.items.reduce(
+                    (acc: number, i: Item) => acc + (i.price || 0),
+                    0,
+                  );
+                  return (
+                    <button
+                      key={tab.id}
+                      className={`btn ${tabTotal > 0 ? "btn-danger" : "btn-success"}`}
+                      onClick={() => handleSelectTab(tab)}
+                      style={{
+                        height: "60px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <strong>{tab.name}</strong>
+                      {tabTotal > 0 ? <small>{fmt(tabTotal)}</small> : <small>Volný</small>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+          ) : (
+            <p className="muted">{picker.emptyText}</p>
+          )}
+          <div className="modalActions" style={{ marginTop: "20px" }}>
+            <button className="btn btn-ghost" onClick={picker.onClose}>
+              Zavřít
+            </button>
           </div>
-        ) : (
-          <p className="muted">
-            Zatím nejsou vytvořeny žádné stoly. Lze je přidat v administraci stolů.
-          </p>
-        )}
-        <div className="modalActions" style={{ marginTop: "20px" }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              setTabInputName("");
-              setShowTableModal(false);
-            }}
-          >
-            Zavřít
-          </button>
-        </div>
-      </Modal>
-
-      <Modal open={showStaffModal} onClose={() => setShowStaffModal(false)} title="Na Staff">
-        {staffTabs.length > 0 ? (
-          <div>
-            <h4 style={{ marginBottom: "10px" }}>Výběr staff účtu:</h4>
-            <div
-              className="grid-tiny"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
-            >
-              {staffTabs.map((tab) => {
-                const tabTotal = tab.items.reduce((acc: number, i: Item) => acc + (i.price || 0), 0);
-                return (
-                  <button
-                    key={tab.id}
-                    className={`btn ${tabTotal > 0 ? "btn-danger" : "btn-success"}`}
-                    onClick={() => handleSelectTab(tab)}
-                    style={{
-                      height: "60px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <strong>{tab.name}</strong>
-                    {tabTotal > 0 ? <small>{fmt(tabTotal)}</small> : <small>Volný</small>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <p className="muted">
-            Zatím nejsou vytvořeny žádné staff účty. Lze je přidat v nastavení.
-          </p>
-        )}
-        <div className="modalActions" style={{ marginTop: "20px" }}>
-          <button className="btn btn-ghost" onClick={() => setShowStaffModal(false)}>
-            Zavřít
-          </button>
-        </div>
-      </Modal>
+        </Modal>
+      ))}
 
       <Modal open={savedModalOpen} onClose={() => setSavedModalOpen(false)} title="Hotovo">
         <div style={{ textAlign: "center", fontSize: "3rem" }}>✅</div>

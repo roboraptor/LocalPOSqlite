@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as Fa from "react-icons/fa6";
 import { GeneralSettings, ParsedReceipt, ParsedTab } from "@/types/db";
 import { formatCurrency, isWithinDateRange, toTimestamp } from "@/lib/format";
+import { PrintFooter, PrintHeader } from "@/components/PrintHeader";
 
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<ParsedReceipt[]>([]);
@@ -173,37 +174,17 @@ export default function ReceiptsPage() {
   return (
     <div className="container">
       {/* Print-only header */}
-      <div className="print-only" style={{ textAlign: "center", marginBottom: "20px" }}>
-        <h2 style={{ fontSize: 16, margin: "0 0 5px 0", fontWeight: "bold" }}>
-          {general.organization_name || "Local POS"}
-        </h2>
-        {general.organization_address && (
-          <div style={{ fontSize: 10, whiteSpace: "pre-line" }}>{general.organization_address}</div>
-        )}
-        {(general.organization_id || general.organization_vat_id) && (
-          <div style={{ fontSize: 10 }}>
-            {general.organization_id ? `IČO: ${general.organization_id}` : ""}
-            {general.organization_id && general.organization_vat_id ? " • " : ""}
-            {general.organization_vat_id ? `DIČ: ${general.organization_vat_id}` : ""}
-          </div>
-        )}
-        {general.receipt_title && (
-          <div style={{ fontSize: 11, fontWeight: "bold", marginTop: 4 }}>
-            {general.receipt_title}
-          </div>
-        )}
-        {Boolean(general.receipt_header_enabled) && general.receipt_header && (
-          <div style={{ fontSize: 10, whiteSpace: "pre-line", marginTop: 4 }}>
-            {general.receipt_header}
-          </div>
-        )}
-        <div style={{ fontSize: 13, fontWeight: "bold", marginTop: 6 }}>
-          {viewMode === "receipts" ? "SEZNAM UZAVŘENÝCH ÚČTENEK" : "SEZNAM OTEVŘENÝCH ÚČTŮ"}
-        </div>
-        <div style={{ fontSize: 10, color: "#555" }}>
-          Tisk: {new Date().toLocaleString("cs-CZ")} • Dokladů: {filtered.length}
-        </div>
-        <div style={{ borderBottom: "2px solid black", marginTop: 10 }} />
+      <div className="print-only">
+        <PrintHeader
+          general={general}
+          documentTitle={
+            viewMode === "receipts" ? "SEZNAM UZAVŘENÝCH ÚČTENEK" : "SEZNAM OTEVŘENÝCH ÚČTŮ"
+          }
+          metaText={`Tisk: ${new Date().toLocaleString("cs-CZ")} • Dokladů: ${filtered.length}`}
+          titleSize={16}
+          textSize={10}
+          showDivider
+        />
       </div>
 
       <div className="d-flex justify-content-between align-items-center my-3 no-print">
@@ -417,14 +398,7 @@ export default function ReceiptsPage() {
         </div>
       )}
 
-      {Boolean(general.receipt_footer_enabled) && general.receipt_footer && (
-        <div
-          className="print-only"
-          style={{ textAlign: "center", fontSize: 10, whiteSpace: "pre-line", marginTop: 12 }}
-        >
-          {general.receipt_footer}
-        </div>
-      )}
+      <PrintFooter className="print-only" general={general} fontSize={10} marginTop={12} />
 
       {/* Embedded print styles */}
       <style jsx global>{`

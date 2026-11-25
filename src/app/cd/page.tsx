@@ -7,6 +7,17 @@ import { QRCodeSVG } from "qrcode.react";
 import { formatCurrency } from "@/lib/format";
 import type { CustomerState } from "@/lib/customerState";
 
+const FALLBACK_ICONS = [
+  "FaUtensils",
+  "FaBeerMugEmpty",
+  "FaBurger",
+  "FaPizzaSlice",
+  "FaCookie",
+  "FaWineGlass",
+  "FaGlassWater",
+  "FaIceCream",
+];
+
 export default function CustomerDisplayPage() {
   const [state, setState] = useState<CustomerState>({
     receipt: [],
@@ -33,19 +44,7 @@ export default function CustomerDisplayPage() {
         const iconsData = res.ok ? await res.json() : [];
 
         // Fallback pokud není k dispozici žádná oblíbená ikona
-        const finalIconNames =
-          iconsData.length > 0
-            ? iconsData
-            : [
-                "FaUtensils",
-                "FaBeerMugEmpty",
-                "FaBurger",
-                "FaPizzaSlice",
-                "FaCookie",
-                "FaWineGlass",
-                "FaGlassWater",
-                "FaIceCream",
-              ];
+        const finalIconNames = iconsData.length > 0 ? iconsData : FALLBACK_ICONS;
 
         const iconsList = finalIconNames.map((name: string) => (Fa as any)[name]).filter(Boolean);
 
@@ -75,19 +74,7 @@ export default function CustomerDisplayPage() {
   // Spuštění ohňostroje při úspěšné platbě ( completed )
   useEffect(() => {
     if (state.status === "completed") {
-      const list =
-        favoriteIconNames.length > 0
-          ? favoriteIconNames
-          : [
-              "FaUtensils",
-              "FaBeerMugEmpty",
-              "FaBurger",
-              "FaPizzaSlice",
-              "FaCookie",
-              "FaWineGlass",
-              "FaGlassWater",
-              "FaIceCream",
-            ];
+      const list = favoriteIconNames.length > 0 ? favoriteIconNames : FALLBACK_ICONS;
 
       const newParticles = Array.from({ length: 45 }).map((_, idx) => {
         const angle = Math.random() * Math.PI * 2;
@@ -140,16 +127,10 @@ export default function CustomerDisplayPage() {
     let eventSource: EventSource;
 
     function connect() {
-      console.log("[SSE Client] Connecting to /api/customer-display/stream...");
       eventSource = new EventSource("/api/customer-display/stream");
-
-      eventSource.onopen = () => {
-        console.log("[SSE Client] Connection opened successfully!");
-      };
 
       eventSource.onmessage = (event) => {
         try {
-          console.log("[SSE Client] Received state update:", event.data);
           const data = JSON.parse(event.data);
           setState(data);
         } catch (err) {

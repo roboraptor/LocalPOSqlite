@@ -6,6 +6,7 @@ import {
   applyAdbBrightness,
   clampInt,
   ensureAdbWatcher,
+  findTargetAdbDevice,
   getCustomerDisplaySettings,
   handleDevicePresence,
   parseAdbDevices,
@@ -43,10 +44,6 @@ export async function POST(req: NextRequest) {
     const toBool = (key: keyof typeof DEFAULT_CD_SETTINGS) =>
       body[key] !== undefined ? (body[key] ? 1 : 0) : Number(current[key]) || 0;
 
-    const idle_brightness =
-      body.idle_brightness !== undefined
-        ? clampInt(body.idle_brightness, 0, 255, 60)
-        : current.idle_brightness;
     const active_brightness =
       body.active_brightness !== undefined
         ? clampInt(body.active_brightness, 0, 255, 100)
@@ -67,7 +64,7 @@ export async function POST(req: NextRequest) {
       SET adb_path = ?, device_serial = ?, port = ?,
           auto_reverse = ?, auto_open_cd = ?, auto_immersive = ?,
           auto_fullscreen = ?, auto_stay_on = ?, auto_brightness = ?,
-          idle_brightness = ?, active_brightness = ?, qr_brightness = ?,
+          active_brightness = ?, qr_brightness = ?,
           tap_x = ?, tap_y = ?, auto_delays = ?
       WHERE id = 1
     `,
@@ -81,7 +78,6 @@ export async function POST(req: NextRequest) {
       toBool("auto_fullscreen"),
       toBool("auto_stay_on"),
       toBool("auto_brightness"),
-      idle_brightness,
       active_brightness,
       qr_brightness,
       tap_x,
@@ -110,9 +106,7 @@ export async function PUT(req: NextRequest) {
     if (action === "status") {
       const { stdout } = await runAdb(adbPath, ["devices", "-l"]);
       const devices = parseAdbDevices(stdout);
-      const targetDevice = serial
-        ? devices.find((d) => d.serial === serial && d.state === "device")
-        : devices.find((d) => d.state === "device");
+      const targetDevice = findTargetAdbDevice(devices, serial);
 
       let battery: ReturnType<typeof parseBatteryDump> | null = null;
       if (targetDevice) {
@@ -181,9 +175,7 @@ export async function PUT(req: NextRequest) {
       run_auto: async () => {
         const { stdout } = await runAdb(adbPath, ["devices", "-l"]);
         const devices = parseAdbDevices(stdout);
-        const target = serial
-          ? devices.find((d) => d.serial === serial && d.state === "device")
-          : devices.find((d) => d.state === "device");
+        const target = findTargetAdbDevice(devices, serial);
 
         if (!target) {
           throw new Error("Žádné aktivní ADB zařízení není připojeno.");

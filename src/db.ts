@@ -105,7 +105,7 @@ export function initDb(targetDb?: Database.Database) {
     );
 
     CREATE TABLE IF NOT EXISTS receipts (
-      id INTEGER PRIMARY KEY, -- We use timestamp as ID
+      id INTEGER PRIMARY KEY, -- Auto-increment receipt ID
       created_at TEXT NOT NULL,
       issued_to TEXT,
       items TEXT NOT NULL, -- JSON blob of the receipt items at time of purchase

@@ -96,7 +96,6 @@ export interface CustomerDisplaySettings {
   auto_fullscreen: number;
   auto_stay_on: number;
   auto_brightness: number;
-  idle_brightness: number;
   active_brightness: number;
   qr_brightness: number;
   tap_x: number;

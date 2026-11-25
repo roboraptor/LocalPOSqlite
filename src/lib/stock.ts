@@ -17,6 +17,20 @@ function roundStock(value: number): number {
 }
 
 /**
+ * Returns true if the item has valid stock tracking configuration.
+ */
+export function hasItemStock(
+  item: Pick<Item, "stock_initial" | "stock_deduct">,
+): boolean {
+  return (
+    item.stock_initial != null &&
+    item.stock_initial > 0 &&
+    item.stock_deduct != null &&
+    item.stock_deduct > 0
+  );
+}
+
+/**
  * Counts sold/reserved item occurrences across paid receipts and open tabs.
  * Negative IDs (e.g. ad-hoc custom items) and malformed JSON blobs are ignored.
  */
@@ -60,25 +74,22 @@ export function calculateItemStock(
   item: Pick<Item, "stock_unit" | "stock_initial" | "stock_deduct">,
   usedCount: number,
 ): StockSummary | null {
-  if (
-    item.stock_initial == null ||
-    item.stock_initial <= 0 ||
-    item.stock_deduct == null ||
-    item.stock_deduct <= 0
-  ) {
+  if (!hasItemStock(item)) {
     return null;
   }
 
+  const initial = item.stock_initial!;
+  const deduct = item.stock_deduct!;
   const safeCount = Number.isFinite(usedCount) && usedCount > 0 ? usedCount : 0;
-  const soldAmount = roundStock(safeCount * item.stock_deduct);
-  const remaining = roundStock(item.stock_initial - soldAmount);
-  const percent = Math.max(0, Math.min(100, (remaining / item.stock_initial) * 100));
+  const soldAmount = roundStock(safeCount * deduct);
+  const remaining = roundStock(initial - soldAmount);
+  const percent = Math.max(0, Math.min(100, (remaining / initial) * 100));
 
   return {
     enabled: true,
     unit: item.stock_unit?.trim() || "ks",
-    initial: item.stock_initial,
-    deduct: item.stock_deduct,
+    initial,
+    deduct,
     soldCount: safeCount,
     soldAmount,
     remaining,

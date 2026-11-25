@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
     const prevShowQR = Boolean(prev.showQRModal);
     const prevReceiptJson = JSON.stringify(prev.receipt || []);
 
-    console.log("[API Update] Received update payload:", JSON.stringify(body));
     updateState(body);
 
     const settings = getCustomerDisplaySettings();
